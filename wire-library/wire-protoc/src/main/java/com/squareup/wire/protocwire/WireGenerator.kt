@@ -1,6 +1,7 @@
 package com.squareup.wire.protocwire
 
 import com.google.protobuf.AbstractMessage
+import com.google.protobuf.DescriptorProtos
 import com.google.protobuf.DescriptorProtos.DescriptorProto
 import com.google.protobuf.DescriptorProtos.EnumDescriptorProto
 import com.google.protobuf.DescriptorProtos.FieldDescriptorProto
@@ -185,8 +186,6 @@ private fun parseMessage(path: List<Int>, helper: SourceCodeHelper, message: Des
 
   val mapTypes = mutableMapOf<String, MapEntryType>()
   for ((index, nestedType) in message.nestedTypeList.withIndex()) {
-    nestedMessagePath[nestedMessagePath.size - 1] = index
-    nestedTypes.add(parseMessage(nestedMessagePath, helper, nestedType, descs))
     if (nestedType.options.mapEntry) {
       val key = nestedType.fieldList[0]
       val value = nestedType.fieldList[1]
