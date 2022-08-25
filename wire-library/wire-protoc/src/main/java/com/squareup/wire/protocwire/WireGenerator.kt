@@ -182,12 +182,15 @@ private fun parseMessage(path: List<Int>, helper: SourceCodeHelper, message: Des
   val nestedTypes = mutableListOf<TypeElement>()
   val nestedMessagePath = mutableListOf(*path.toTypedArray())
   nestedMessagePath.addAll(listOf(DescriptorProto.NESTED_TYPE_FIELD_NUMBER, 0))
-  val mapTypes = mutableSetOf<String>()
+
+  val mapTypes = mutableMapOf<String, MapEntryType>()
   for ((index, nestedType) in message.nestedTypeList.withIndex()) {
     nestedMessagePath[nestedMessagePath.size - 1] = index
     nestedTypes.add(parseMessage(nestedMessagePath, helper, nestedType, descs))
     if (nestedType.options.mapEntry) {
-      mapTypes.add(".${message.name}.${nestedType.name}")
+      val key = nestedType.fieldList[0]
+      val value = nestedType.fieldList[1]
+      mapTypes["${value.typeName}.${nestedType.name}"] = MapEntryType(key, value)
       continue
     }
     nestedMessagePath[nestedMessagePath.size - 1] = index
@@ -215,20 +218,24 @@ private fun parseMessage(path: List<Int>, helper: SourceCodeHelper, message: Des
   )
 }
 
-private fun parseFields(path: List<Int>, helper: SourceCodeHelper, fieldList: List<FieldDescriptorProto>, mapTypes: MutableSet<String>, descs: DescriptorSource): List<FieldElement> {
+private fun parseFields(path: List<Int>, helper: SourceCodeHelper, fieldList: List<FieldDescriptorProto>, mapTypes: MutableMap<String, MapEntryType>, descs: DescriptorSource): List<FieldElement> {
   val result = mutableListOf<FieldElement>()
   val fieldPath = mutableListOf(*path.toTypedArray())
   fieldPath.addAll(listOf(DescriptorProto.FIELD_FIELD_NUMBER, 0))
   for ((index, field) in fieldList.withIndex()) {
-    if (mapTypes.contains(field.typeName)) {
-      continue
+    var label = parseLabel(field.label)
+    var type = parseType(field)
+    if (mapTypes.contains(type)) {
+      val entryType = mapTypes[type]!!
+      type = "map<${entryType.keyTypeName}, ${entryType.valueTypeName}>"
+      label = null
     }
     fieldPath[fieldPath.size - 1] = index
     val info = helper.getLocation(fieldPath)
     result.add(FieldElement(
       location = info.loc,
-      label = parseLabel(field.label),
-      type = parseType(field),
+      label = label,
+      type = type,
       name = field.name,
 //      defaultValue = field.defaultValue,
       jsonName = field.jsonName,
@@ -384,3 +391,11 @@ private class SourceCodeHelper(
   }
 }
 
+// For helping with parsing map fields.
+class MapEntryType(
+  keyProto: DescriptorProtos.FieldDescriptorProto,
+  valueProto: DescriptorProtos.FieldDescriptorProto,
+) {
+  val keyTypeName = parseType(keyProto)
+  val valueTypeName = parseType(valueProto)
+}

@@ -32,17 +32,16 @@ message MessageFieldMsg { // trailing docs for MessageFieldMsg
   StringMsg msg = 1; // trailing doc comment
 }
 
+// NestedMsg
 message NestedMsg {
+  // InnerMsg field
   InnerMsg msg = 1;
 
   // This message is nested inside another
   message InnerMsg {
+    // InnerMsg field
     int32 i = 1;
   }
-}
-
-message EnumMsg {
-  Enum enumeration = 1;
 }
 
 // Enum doc comment
@@ -51,4 +50,16 @@ enum Enum {
   UNSPECIFIED = 0;
   // Numero Uno!
   FIRST_VALUE = 1;
+}
+
+// List
+message RecursiveList {
+  // Recursive reference for list
+  repeated RecursiveList list = 1;
+}
+
+// Maps
+message RecursiveMap {
+  // Recursive reference for map
+  map<string, RecursiveMap> map = 1;
 }
