@@ -179,11 +179,17 @@ private fun parseEnum(path: List<Int>, helper: SourceCodeHelper, enum: EnumDescr
 
 private fun parseMessage(path: List<Int>, helper: SourceCodeHelper, message: DescriptorProto, descs: DescriptorSource): MessageElement {
   val info = helper.getLocation(path)
-
   val nestedTypes = mutableListOf<TypeElement>()
   val nestedMessagePath = mutableListOf(*path.toTypedArray())
   nestedMessagePath.addAll(listOf(DescriptorProto.NESTED_TYPE_FIELD_NUMBER, 0))
+  val mapTypes = mutableSetOf<String>()
   for ((index, nestedType) in message.nestedTypeList.withIndex()) {
+    nestedMessagePath[nestedMessagePath.size - 1] = index
+    nestedTypes.add(parseMessage(nestedMessagePath, helper, nestedType, descs))
+    if (nestedType.options.mapEntry) {
+      mapTypes.add(".${message.name}.${nestedType.name}")
+      continue
+    }
     nestedMessagePath[nestedMessagePath.size - 1] = index
     nestedTypes.add(parseMessage(nestedMessagePath, helper, nestedType, descs))
   }
@@ -201,7 +207,7 @@ private fun parseMessage(path: List<Int>, helper: SourceCodeHelper, message: Des
     documentation = info.comment,
     options = parseOptions(message.options, descs),
     reserveds = emptyList(),
-    fields = parseFields(path, helper, message.fieldList, descs),
+    fields = parseFields(path, helper, message.fieldList, mapTypes, descs),
     nestedTypes = nestedTypes,
     oneOfs = emptyList(),
     extensions = emptyList(),
@@ -209,11 +215,14 @@ private fun parseMessage(path: List<Int>, helper: SourceCodeHelper, message: Des
   )
 }
 
-private fun parseFields(path: List<Int>, helper: SourceCodeHelper, fieldList: List<FieldDescriptorProto>, descs: DescriptorSource): List<FieldElement> {
+private fun parseFields(path: List<Int>, helper: SourceCodeHelper, fieldList: List<FieldDescriptorProto>, mapTypes: MutableSet<String>, descs: DescriptorSource): List<FieldElement> {
   val result = mutableListOf<FieldElement>()
   val fieldPath = mutableListOf(*path.toTypedArray())
   fieldPath.addAll(listOf(DescriptorProto.FIELD_FIELD_NUMBER, 0))
   for ((index, field) in fieldList.withIndex()) {
+    if (mapTypes.contains(field.typeName)) {
+      continue
+    }
     fieldPath[fieldPath.size - 1] = index
     val info = helper.getLocation(fieldPath)
     result.add(FieldElement(
@@ -269,7 +278,7 @@ private fun parseLabel(label: FieldDescriptorProto.Label): Field.Label? {
   }
 }
 
-private fun <T: ExtendableMessage<T>> parseOptions(options: T, descs: DescriptorSource): List<OptionElement> {
+private fun <T : ExtendableMessage<T>> parseOptions(options: T, descs: DescriptorSource): List<OptionElement> {
   val optDesc = options.descriptorForType
   val overrideDesc = descs.findMessageTypeByName(optDesc.fullName)
   if (overrideDesc != null) {
@@ -307,7 +316,7 @@ private fun valueOf(value: Any): OptionValueAndKind {
 
 private fun toCharArray(bytes: ByteArray): CharArray {
   val ch = CharArray(bytes.size)
-  bytes.forEachIndexed{ index, element -> ch[index] = element.toInt().toChar() }
+  bytes.forEachIndexed { index, element -> ch[index] = element.toInt().toChar() }
   return ch
 }
 
