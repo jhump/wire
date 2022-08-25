@@ -34,6 +34,8 @@ import com.squareup.wire.schema.internal.parser.MessageElement
 import com.squareup.wire.schema.internal.parser.OptionElement
 import com.squareup.wire.schema.internal.parser.ProtoFileElement
 import com.squareup.wire.schema.internal.parser.TypeElement
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 import okio.Buffer
 import okio.BufferedSink
 import okio.FileSystem
@@ -109,7 +111,11 @@ class WireGenerator(
       // Create a specific target and just run.
       KotlinProtocTarget().newHandler().handle(schema, CodeGeneratorResponseContext(response, sourcePaths))
     } catch (e: Throwable) {
-      response.addFile("error.log", e.stackTraceToString())
+      // Quality of life improvement.
+      val current = LocalDateTime.now()
+      val formatter = DateTimeFormatter.ofPattern("HH:mm:ss")
+      val formatted = current.format(formatter)
+      response.addFile("$formatted-error.log", e.stackTraceToString())
     }
   }
 
