@@ -144,7 +144,7 @@ private fun parseFileDescriptor(fileDescriptor: DescriptorProtos.FileDescriptorP
     location = location,
     imports = imports,
     publicImports = publicImports,
-    packageName = fileDescriptor.`package`,
+    packageName = if (fileDescriptor.hasPackage()) fileDescriptor.`package` else null,
     types = types,
     services = emptyList(),
     options = parseOptions(fileDescriptor.options, descs),
