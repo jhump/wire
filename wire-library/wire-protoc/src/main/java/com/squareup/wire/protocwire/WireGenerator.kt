@@ -30,6 +30,7 @@ import com.squareup.wire.schema.ProtoFile
 import com.squareup.wire.schema.ProtoType
 import com.squareup.wire.schema.Schema
 import com.squareup.wire.schema.SchemaHandler
+import com.squareup.wire.schema.SwiftTarget
 import com.squareup.wire.schema.Target
 import com.squareup.wire.schema.internal.parser.EnumConstantElement
 import com.squareup.wire.schema.internal.parser.EnumElement
@@ -76,8 +77,6 @@ data class CodeGeneratorResponseContext(
   private val response: Plugin.Response,
   override val sourcePathPaths: Set<String> = emptySet()
 ) : SchemaHandler.Context {
-  override val fileSystem: FileSystem
-    get() = FakeFileSystem()
   override val outDirectory: Path
     get() = "".toPath()
   override val logger: WireLogger

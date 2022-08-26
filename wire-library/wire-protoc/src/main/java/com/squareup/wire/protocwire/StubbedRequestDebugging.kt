@@ -1,6 +1,8 @@
 package com.squareup.wire.protocwire
 
 import com.google.protobuf.compiler.PluginProtos
+import com.squareup.wire.schema.KotlinTarget
+import com.squareup.wire.schema.SwiftTarget
 import java.io.File
 import java.io.InputStream
 
@@ -24,7 +26,8 @@ class StubbedRequestDebugging {
 
     @JvmStatic
     fun main(args: Array<String>) {
-      Plugin.run(WireGenerator(), StubbedTestEnvironment())
+      val target = KotlinTarget(outDirectory = "")
+      Plugin.run(WireGenerator(target), StubbedTestEnvironment())
     }
   }
 }
