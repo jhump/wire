@@ -1,6 +1,7 @@
 package com.squareup.wire.protocwire
 
 import com.google.protobuf.AbstractMessage
+import com.google.protobuf.DescriptorProtos
 import com.google.protobuf.DescriptorProtos.DescriptorProto
 import com.google.protobuf.DescriptorProtos.EnumDescriptorProto
 import com.google.protobuf.DescriptorProtos.FieldDescriptorProto
@@ -30,6 +31,7 @@ import com.squareup.wire.schema.internal.parser.EnumConstantElement
 import com.squareup.wire.schema.internal.parser.EnumElement
 import com.squareup.wire.schema.internal.parser.FieldElement
 import com.squareup.wire.schema.internal.parser.MessageElement
+import com.squareup.wire.schema.internal.parser.OneOfElement
 import com.squareup.wire.schema.internal.parser.OptionElement
 import com.squareup.wire.schema.internal.parser.ProtoFileElement
 import com.squareup.wire.schema.internal.parser.TypeElement
@@ -86,9 +88,7 @@ data class CodeGeneratorResponseContext(
   }
 }
 
-class WireGenerator(
-
-) : CodeGenerator {
+class WireGenerator() : CodeGenerator {
   override fun generate(request: PluginProtos.CodeGeneratorRequest, descs: DescriptorSource, response: Plugin.Response) {
     debug(request)
     val loader = CoreLoader
@@ -195,18 +195,53 @@ private fun parseMessage(path: List<Int>, helper: SourceCodeHelper, message: Des
     nestedTypes.add(parseEnum(nestedEnumPath, helper, nestedType, descs))
   }
 
+  val fieldList = message.fieldList.filter { field -> !field.hasOneofIndex() }
+  val oneOfFieldList = message.fieldList.filter { field -> field.hasOneofIndex() }
   return MessageElement(
     location = info.loc,
     name = message.name,
     documentation = info.comment,
     options = parseOptions(message.options, descs),
     reserveds = emptyList(),
-    fields = parseFields(path, helper, message.fieldList, descs),
+    fields = parseFields(path, helper, fieldList, descs),
     nestedTypes = nestedTypes,
-    oneOfs = emptyList(),
+    oneOfs = parseOneOfs(path, helper, message.oneofDeclList, oneOfFieldList, descs),
     extensions = emptyList(),
     groups = emptyList(),
   )
+}
+
+private fun parseOneOfs(
+  path: List<Int>, helper: SourceCodeHelper,
+  oneOfDeclList: List<DescriptorProtos.OneofDescriptorProto>,
+  fields: List<FieldDescriptorProto>,
+  descs: DescriptorSource
+): List<OneOfElement> {
+  val info = helper.getLocation(path)
+  val result = mutableListOf<OneOfElement>()
+  val oneOfPath = mutableListOf(*path.toTypedArray())
+  oneOfPath.addAll(listOf(DescriptorProto.ONEOF_DECL_FIELD_NUMBER, 0))
+  val oneOfMap = mutableMapOf<Int, MutableList<FieldDescriptorProto>>()
+  for (field in fields) {
+    if (!field.hasOneofIndex()) {
+      continue
+    }
+    val oneOfIndexList = oneOfMap[field.oneofIndex] ?: mutableListOf()
+    oneOfIndexList.add(field)
+    oneOfMap[field.oneofIndex] = oneOfIndexList
+  }
+
+  for (oneOfIndex in oneOfMap.keys) {
+    val oneOfFields = oneOfMap[oneOfIndex]!!
+    result.add(OneOfElement(
+      name = oneOfDeclList[oneOfIndex].name,
+      documentation = info.comment,
+      fields = parseFields(path, helper, oneOfFields, descs),
+      groups = emptyList(),
+      options = parseOptions(oneOfDeclList[oneOfIndex].options, descs)
+    ))
+  }
+  return result
 }
 
 private fun parseFields(path: List<Int>, helper: SourceCodeHelper, fieldList: List<FieldDescriptorProto>, descs: DescriptorSource): List<FieldElement> {
