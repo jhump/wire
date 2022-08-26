@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package foo.bar;
+
+message Foo {
+  // results in type name ".foo.bar.Foo.DataEntry"
+  map<string, string> data = 1;
+  message Bar {
+    message Foo {
+      message DataEntry {
+      }
+    }
+  }
+  // results in type name ".foo.bar.Foo.Bar.Foo.DataEntry"
+  // since this contains "Foo.DataEntry" it will be incorrectly
+  // assumed to be a map type, too
+  Bar.Foo.DataEntry more_data = 2;
+}

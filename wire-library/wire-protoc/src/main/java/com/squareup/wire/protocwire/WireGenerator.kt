@@ -33,6 +33,8 @@ import com.squareup.wire.schema.internal.parser.MessageElement
 import com.squareup.wire.schema.internal.parser.OptionElement
 import com.squareup.wire.schema.internal.parser.ProtoFileElement
 import com.squareup.wire.schema.internal.parser.TypeElement
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 import okio.Buffer
 import okio.BufferedSink
 import okio.FileSystem
@@ -108,7 +110,11 @@ class WireGenerator(
       // Create a specific target and just run.
       KotlinProtocTarget().newHandler().handle(schema, CodeGeneratorResponseContext(response, sourcePaths))
     } catch (e: Throwable) {
-      response.addFile("error.log", e.stackTraceToString())
+      // Quality of life improvement.
+      val current = LocalDateTime.now()
+      val formatter = DateTimeFormatter.ofPattern("HH:mm:ss")
+      val formatted = current.format(formatter)
+      response.addFile("$formatted-error.log", e.stackTraceToString())
     }
   }
 
@@ -121,6 +127,7 @@ class WireGenerator(
 }
 
 private fun parseFileDescriptor(fileDescriptor: FileDescriptorProto, descs: DescriptorSource): ProtoFileElement {
+  val packagePrefix = if (fileDescriptor.hasPackage()) ".${fileDescriptor.`package`}" else ""
   val helper = SourceCodeHelper(fileDescriptor)
 
   val imports = mutableListOf<String>()
@@ -130,7 +137,7 @@ private fun parseFileDescriptor(fileDescriptor: FileDescriptorProto, descs: Desc
   val messagePath = mutableListOf(FileDescriptorProto.MESSAGE_TYPE_FIELD_NUMBER, 0)
   for ((index, messageType) in fileDescriptor.messageTypeList.withIndex()) {
     messagePath[1] = index
-    types.add(parseMessage(messagePath, helper, messageType, descs))
+    types.add(parseMessage(messagePath, helper, packagePrefix, messageType, descs))
   }
 
   val enumPath = mutableListOf(FileDescriptorProto.ENUM_TYPE_FIELD_NUMBER, 0)
@@ -138,6 +145,7 @@ private fun parseFileDescriptor(fileDescriptor: FileDescriptorProto, descs: Desc
     enumPath[1] = index
     types.add(parseEnum(messagePath, helper, enumType, descs))
   }
+
 
   return ProtoFileElement(
     location = Location.get(fileDescriptor.name),
@@ -177,15 +185,23 @@ private fun parseEnum(path: List<Int>, helper: SourceCodeHelper, enum: EnumDescr
   )
 }
 
-private fun parseMessage(path: List<Int>, helper: SourceCodeHelper, message: DescriptorProto, descs: DescriptorSource): MessageElement {
+private fun parseMessage(path: List<Int>, helper: SourceCodeHelper, packagePrefix: String, message: DescriptorProto, descs: DescriptorSource): MessageElement {
   val info = helper.getLocation(path)
-
   val nestedTypes = mutableListOf<TypeElement>()
   val nestedMessagePath = mutableListOf(*path.toTypedArray())
   nestedMessagePath.addAll(listOf(DescriptorProto.NESTED_TYPE_FIELD_NUMBER, 0))
+
+  val mapTypes = mutableMapOf<String, String>()
   for ((index, nestedType) in message.nestedTypeList.withIndex()) {
+    if (nestedType.options.mapEntry) {
+      val nestedTypeFullyQualifiedName = "$packagePrefix.${message.name}.${nestedType.name}"
+      val keyTypeName = parseType(nestedType.fieldList[0])
+      val valueTypeName = parseType(nestedType.fieldList[1])
+      mapTypes[nestedTypeFullyQualifiedName] = "map<${keyTypeName}, ${valueTypeName}>"
+      continue
+    }
     nestedMessagePath[nestedMessagePath.size - 1] = index
-    nestedTypes.add(parseMessage(nestedMessagePath, helper, nestedType, descs))
+    nestedTypes.add(parseMessage(nestedMessagePath, helper, "$packagePrefix.${nestedType.name}", nestedType, descs))
   }
 
   val nestedEnumPath = mutableListOf(*path.toTypedArray())
@@ -201,7 +217,7 @@ private fun parseMessage(path: List<Int>, helper: SourceCodeHelper, message: Des
     documentation = info.comment,
     options = parseOptions(message.options, descs),
     reserveds = emptyList(),
-    fields = parseFields(path, helper, message.fieldList, descs),
+    fields = parseFields(path, helper, message.fieldList, mapTypes, descs),
     nestedTypes = nestedTypes,
     oneOfs = emptyList(),
     extensions = emptyList(),
@@ -209,17 +225,23 @@ private fun parseMessage(path: List<Int>, helper: SourceCodeHelper, message: Des
   )
 }
 
-private fun parseFields(path: List<Int>, helper: SourceCodeHelper, fieldList: List<FieldDescriptorProto>, descs: DescriptorSource): List<FieldElement> {
+private fun parseFields(path: List<Int>, helper: SourceCodeHelper, fieldList: List<FieldDescriptorProto>, mapTypes: MutableMap<String, String>, descs: DescriptorSource): List<FieldElement> {
   val result = mutableListOf<FieldElement>()
   val fieldPath = mutableListOf(*path.toTypedArray())
   fieldPath.addAll(listOf(DescriptorProto.FIELD_FIELD_NUMBER, 0))
   for ((index, field) in fieldList.withIndex()) {
+    var label = parseLabel(field.label)
+    var type = parseType(field)
+    if (mapTypes.keys.contains(type)) {
+      type = mapTypes[type]!!
+      label = null
+    }
     fieldPath[fieldPath.size - 1] = index
     val info = helper.getLocation(fieldPath)
     result.add(FieldElement(
       location = info.loc,
-      label = parseLabel(field.label),
-      type = parseType(field),
+      label = label,
+      type = type,
       name = field.name,
 //      defaultValue = field.defaultValue,
       jsonName = field.jsonName,
@@ -269,7 +291,7 @@ private fun parseLabel(label: FieldDescriptorProto.Label): Field.Label? {
   }
 }
 
-private fun <T: ExtendableMessage<T>> parseOptions(options: T, descs: DescriptorSource): List<OptionElement> {
+private fun <T : ExtendableMessage<T>> parseOptions(options: T, descs: DescriptorSource): List<OptionElement> {
   val optDesc = options.descriptorForType
   val overrideDesc = descs.findMessageTypeByName(optDesc.fullName)
   if (overrideDesc != null) {
@@ -307,7 +329,7 @@ private fun valueOf(value: Any): OptionValueAndKind {
 
 private fun toCharArray(bytes: ByteArray): CharArray {
   val ch = CharArray(bytes.size)
-  bytes.forEachIndexed{ index, element -> ch[index] = element.toInt().toChar() }
+  bytes.forEachIndexed { index, element -> ch[index] = element.toInt().toChar() }
   return ch
 }
 
@@ -374,4 +396,3 @@ private class SourceCodeHelper(
     return m
   }
 }
-
