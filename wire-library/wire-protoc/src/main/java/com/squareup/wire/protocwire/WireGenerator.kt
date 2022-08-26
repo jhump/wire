@@ -195,17 +195,16 @@ private fun parseMessage(path: List<Int>, helper: SourceCodeHelper, message: Des
     nestedTypes.add(parseEnum(nestedEnumPath, helper, nestedType, descs))
   }
 
-  val fieldList = message.fieldList.filter { field -> !field.hasOneofIndex() }
-  val oneOfFieldList = message.fieldList.filter { field -> field.hasOneofIndex() }
+  val messageFields = MessageFields(message.fieldList)
   return MessageElement(
     location = info.loc,
     name = message.name,
     documentation = info.comment,
     options = parseOptions(message.options, descs),
     reserveds = emptyList(),
-    fields = parseFields(path, helper, fieldList, descs),
+    fields = parseFields(path, helper, messageFields.fieldList, descs),
     nestedTypes = nestedTypes,
-    oneOfs = parseOneOfs(path, helper, message.oneofDeclList, oneOfFieldList, descs),
+    oneOfs = parseOneOfs(path, helper, message.oneofDeclList, messageFields, descs),
     extensions = emptyList(),
     groups = emptyList(),
   )
@@ -214,18 +213,21 @@ private fun parseMessage(path: List<Int>, helper: SourceCodeHelper, message: Des
 private fun parseOneOfs(
   path: List<Int>, helper: SourceCodeHelper,
   oneOfDeclList: List<DescriptorProtos.OneofDescriptorProto>,
-  oneOfFieldsList: List<FieldDescriptorProto>,
+  messageFields: MessageFields,
   descs: DescriptorSource
 ): List<OneOfElement> {
   val info = helper.getLocation(path)
   val result = mutableListOf<OneOfElement>()
   val oneOfPath = mutableListOf(*path.toTypedArray())
   oneOfPath.addAll(listOf(DescriptorProto.ONEOF_DECL_FIELD_NUMBER, 0))
-  val oneOfMap = mutableMapOf<Int, MutableList<FieldDescriptorProto>>()
-  for (field in oneOfFieldsList) {
-    val oneOfIndexList = oneOfMap[field.oneofIndex] ?: mutableListOf()
-    oneOfIndexList.add(field)
-    oneOfMap[field.oneofIndex] = oneOfIndexList
+  val oneOfMap = mutableMapOf<Int, MutableList<Pair<Int, FieldDescriptorProto>>>()
+  for (field in messageFields.oneOfFieldList) {
+    val descriptorProto = field.second
+    if (descriptorProto.hasOneofIndex()) {
+      val oneOfIndexList = oneOfMap[descriptorProto.oneofIndex] ?: mutableListOf()
+      oneOfIndexList.add(field)
+      oneOfMap[descriptorProto.oneofIndex] = oneOfIndexList
+    }
   }
 
   for (oneOfIndex in oneOfMap.keys) {
@@ -241,11 +243,11 @@ private fun parseOneOfs(
   return result
 }
 
-private fun parseFields(path: List<Int>, helper: SourceCodeHelper, fieldList: List<FieldDescriptorProto>, descs: DescriptorSource): List<FieldElement> {
+private fun parseFields(path: List<Int>, helper: SourceCodeHelper, fieldList: List<Pair<Int, FieldDescriptorProto>>, descs: DescriptorSource): List<FieldElement> {
   val result = mutableListOf<FieldElement>()
   val fieldPath = mutableListOf(*path.toTypedArray())
   fieldPath.addAll(listOf(DescriptorProto.FIELD_FIELD_NUMBER, 0))
-  for ((index, field) in fieldList.withIndex()) {
+  for ((index, field) in fieldList) {
     fieldPath[fieldPath.size - 1] = index
     val info = helper.getLocation(fieldPath)
     result.add(FieldElement(
@@ -405,5 +407,16 @@ private class SourceCodeHelper(
     }
     return m
   }
+}
+
+/**
+ * Helper object for managing message oneof fields and non-oneof fields.
+ */
+private class MessageFields(
+  fieldList: List<FieldDescriptorProto>,
+) {
+  val internal = fieldList.mapIndexed { index, fieldDescriptorProto -> index to fieldDescriptorProto }
+  val oneOfFieldList: List<Pair<Int, FieldDescriptorProto>> = internal.filter { elm -> elm.second.hasOneofIndex() }
+  val fieldList: List<Pair<Int, FieldDescriptorProto>> = internal.filter { elm -> !elm.second.hasOneofIndex() }
 }
 
