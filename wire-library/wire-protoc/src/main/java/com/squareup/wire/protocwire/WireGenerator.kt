@@ -128,6 +128,8 @@ class WireGenerator(
 }
 
 private fun parseFileDescriptor(fileDescriptor: FileDescriptorProto, descs: DescriptorSource): ProtoFileElement {
+  val packageName = if (fileDescriptor.hasPackage()) fileDescriptor.`package` else null
+  val packagePrefix = if (fileDescriptor.hasPackage()) ".${fileDescriptor.`package`}" else ""
   val helper = SourceCodeHelper(fileDescriptor)
 
   val imports = mutableListOf<String>()
@@ -137,7 +139,7 @@ private fun parseFileDescriptor(fileDescriptor: FileDescriptorProto, descs: Desc
   val messagePath = mutableListOf(FileDescriptorProto.MESSAGE_TYPE_FIELD_NUMBER, 0)
   for ((index, messageType) in fileDescriptor.messageTypeList.withIndex()) {
     messagePath[1] = index
-    types.add(parseMessage(messagePath, helper, messageType, descs))
+    types.add(parseMessage(messagePath, helper, packagePrefix, messageType, descs))
   }
 
   val enumPath = mutableListOf(FileDescriptorProto.ENUM_TYPE_FIELD_NUMBER, 0)
@@ -146,11 +148,12 @@ private fun parseFileDescriptor(fileDescriptor: FileDescriptorProto, descs: Desc
     types.add(parseEnum(messagePath, helper, enumType, descs))
   }
 
+
   return ProtoFileElement(
     location = Location.get(fileDescriptor.name),
     imports = imports,
     publicImports = publicImports,
-    packageName = if (fileDescriptor.hasPackage()) fileDescriptor.`package` else null,
+    packageName = packageName,
     types = types,
     services = emptyList(),
     options = parseOptions(fileDescriptor.options, descs),
@@ -184,7 +187,7 @@ private fun parseEnum(path: List<Int>, helper: SourceCodeHelper, enum: EnumDescr
   )
 }
 
-private fun parseMessage(path: List<Int>, helper: SourceCodeHelper, message: DescriptorProto, descs: DescriptorSource): MessageElement {
+private fun parseMessage(path: List<Int>, helper: SourceCodeHelper, packagePrefix: String, message: DescriptorProto, descs: DescriptorSource): MessageElement {
   val info = helper.getLocation(path)
   val nestedTypes = mutableListOf<TypeElement>()
   val nestedMessagePath = mutableListOf(*path.toTypedArray())
@@ -193,13 +196,14 @@ private fun parseMessage(path: List<Int>, helper: SourceCodeHelper, message: Des
   val mapTypes = mutableMapOf<String, MapEntryType>()
   for ((index, nestedType) in message.nestedTypeList.withIndex()) {
     if (nestedType.options.mapEntry) {
+      val nestedTypeFullyQualifiedName = "$packagePrefix.${message.name}.${nestedType.name}"
       val key = nestedType.fieldList[0]
       val value = nestedType.fieldList[1]
-      mapTypes["${value.typeName}.${nestedType.name}"] = MapEntryType(key, value)
+      mapTypes[nestedTypeFullyQualifiedName] = MapEntryType(key, value)
       continue
     }
     nestedMessagePath[nestedMessagePath.size - 1] = index
-    nestedTypes.add(parseMessage(nestedMessagePath, helper, nestedType, descs))
+    nestedTypes.add(parseMessage(nestedMessagePath, helper, "$packagePrefix.${nestedType.name}", nestedType, descs))
   }
 
   val nestedEnumPath = mutableListOf(*path.toTypedArray())
