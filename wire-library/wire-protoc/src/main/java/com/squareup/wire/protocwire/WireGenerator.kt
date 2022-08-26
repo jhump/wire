@@ -127,7 +127,6 @@ class WireGenerator(
 }
 
 private fun parseFileDescriptor(fileDescriptor: FileDescriptorProto, descs: DescriptorSource): ProtoFileElement {
-  val packageName = if (fileDescriptor.hasPackage()) fileDescriptor.`package` else null
   val packagePrefix = if (fileDescriptor.hasPackage()) ".${fileDescriptor.`package`}" else ""
   val helper = SourceCodeHelper(fileDescriptor)
 
@@ -152,7 +151,7 @@ private fun parseFileDescriptor(fileDescriptor: FileDescriptorProto, descs: Desc
     location = Location.get(fileDescriptor.name),
     imports = imports,
     publicImports = publicImports,
-    packageName = packageName,
+    packageName = if (fileDescriptor.hasPackage()) fileDescriptor.`package` else null,
     types = types,
     services = emptyList(),
     options = parseOptions(fileDescriptor.options, descs),
