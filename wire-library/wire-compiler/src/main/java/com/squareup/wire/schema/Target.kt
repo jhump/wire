@@ -124,7 +124,7 @@ data class JavaTarget(
           .withOptions(emitDeclaredOptions, emitAppliedOptions)
           .withBuildersOnly(buildersOnly)
 
-        context.fileSystem.createDirectories(context.outDirectory)
+        context.createDirectories(context.outDirectory)
 
         super.handle(schema, context)
       }
@@ -168,10 +168,8 @@ data class JavaTarget(
           outDirectory, "${javaFile.packageName}.${javaFile.typeSpec.name}", "Java"
         )
         try {
-          context.fileSystem.createDirectories(filePath.parent!!)
-          context.fileSystem.write(filePath) {
-            writeUtf8(javaFile.toString())
-          }
+          context.createDirectories(filePath.parent!!)
+          context.write(filePath, javaFile.toString())
         } catch (e: IOException) {
           throw IOException(
             "Error emitting ${javaFile.packageName}.${javaFile.typeSpec.name} to $outDirectory", e
@@ -270,7 +268,7 @@ data class KotlinTarget(
           nameSuffix = nameSuffix,
           buildersOnly = buildersOnly,
         )
-        context.fileSystem.createDirectories(context.outDirectory)
+        context.createDirectories(context.outDirectory)
         super.handle(schema, context)
       }
 
@@ -371,7 +369,7 @@ data class SwiftTarget(
 
       override fun handle(schema: Schema, context: Context) {
         generator = SwiftGenerator(schema, context.module?.upstreamTypes ?: mapOf())
-        context.fileSystem.createDirectories(context.outDirectory)
+        context.createDirectories(context.outDirectory)
         super.handle(schema, context)
       }
 
@@ -391,9 +389,7 @@ data class SwiftTarget(
 
         val filePath = modulePath / "${swiftFile.name}.swift"
         try {
-          context.fileSystem.write(filePath) {
-            writeUtf8(swiftFile.toString())
-          }
+          context.write(filePath, swiftFile.toString())
         } catch (e: IOException) {
           throw IOException(
             "Error emitting ${swiftFile.moduleName}.${typeName.canonicalName} to $modulePath", e
@@ -440,7 +436,7 @@ data class ProtoTarget(
   override fun newHandler(): SchemaHandler {
     return object : SchemaHandler() {
       override fun handle(schema: Schema, context: Context) {
-        context.fileSystem.createDirectories(context.outDirectory)
+        context.createDirectories(context.outDirectory)
         val outDirectory = context.outDirectory
 
         for (protoFile in schema.protoFiles) {
@@ -453,10 +449,8 @@ data class ProtoTarget(
           context.logger.artifactHandled(outputDirectory, protoFile.location.path, "Proto")
 
           try {
-            context.fileSystem.createDirectories(outputFilePath.parent!!)
-            context.fileSystem.write(outputFilePath) {
-              writeUtf8(protoFile.toSchema())
-            }
+            context.createDirectories(outputFilePath.parent!!)
+            context.write(outputFilePath, protoFile.toSchema())
           } catch (e: IOException) {
             throw IOException("Error emitting $outputFilePath to $outDirectory", e)
           }
