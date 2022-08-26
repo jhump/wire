@@ -30,6 +30,7 @@ import com.squareup.wire.schema.ProtoFile
 import com.squareup.wire.schema.ProtoType
 import com.squareup.wire.schema.Schema
 import com.squareup.wire.schema.SchemaHandler
+import com.squareup.wire.schema.Target
 import com.squareup.wire.schema.internal.parser.EnumConstantElement
 import com.squareup.wire.schema.internal.parser.EnumElement
 import com.squareup.wire.schema.internal.parser.FieldElement
@@ -118,7 +119,9 @@ data class CodeGeneratorResponseContext(
   }
 }
 
-class WireGenerator() : CodeGenerator {
+class WireGenerator(
+  private val target: Target
+) : CodeGenerator {
   override fun generate(request: PluginProtos.CodeGeneratorRequest, descs: DescriptorSource, response: Plugin.Response) {
     debug(request)
     val loader = CoreLoader
@@ -136,7 +139,7 @@ class WireGenerator() : CodeGenerator {
     try {
       val schema = linker.link(protoFiles)
       // Create a specific target and just run.
-      KotlinTarget(outDirectory = "").newHandler().handle(schema, CodeGeneratorResponseContext(response, sourcePaths))
+      target.newHandler().handle(schema, CodeGeneratorResponseContext(response, sourcePaths))
     } catch (e: Throwable) {
       // Quality of life improvement.
       val current = LocalDateTime.now()
@@ -149,7 +152,8 @@ class WireGenerator() : CodeGenerator {
   companion object {
     @JvmStatic
     fun main(args: Array<String>) {
-      Plugin.run(WireGenerator())
+      val target = KotlinTarget(outDirectory = "")
+      Plugin.run(WireGenerator(target))
     }
   }
 }
