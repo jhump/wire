@@ -1,0 +1,7 @@
+message EmptyPackageRecursiveRepeated {
+  repeated EmptyPackageRecursiveRepeated list = 1;
+}
+
+message EmptyPackageRecursiveMap {
+  map<string, EmptyPackageRecursiveMap> map = 1;
+}
