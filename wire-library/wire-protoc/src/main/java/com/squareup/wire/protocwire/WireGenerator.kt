@@ -264,9 +264,8 @@ private fun indexFieldsByOneOf(
   val oneOfMap = mutableMapOf<Int, MutableList<FieldElement>>()
   for ((descriptor, fieldElement) in fields) {
     if (descriptor.hasOneofIndex()) {
-      val list = oneOfMap[descriptor.oneofIndex] ?: mutableListOf()
+      val list = oneOfMap.getOrPut(descriptor.oneofIndex) { mutableListOf() }
       list.add(fieldElement)
-      oneOfMap[descriptor.oneofIndex] = list
     }
   }
   return oneOfMap
