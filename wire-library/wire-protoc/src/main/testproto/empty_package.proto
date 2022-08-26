@@ -1,7 +1,7 @@
-message RecursiveRepeated {
-  repeated RecursiveRepeated list = 1;
+message EmptyPackageRecursiveRepeated {
+  repeated EmptyPackageRecursiveRepeated list = 1;
 }
 
-message RecursiveMap {
-  map<string, RecursiveMap> map = 1;
+message EmptyPackageRecursiveMap {
+  map<string, EmptyPackageRecursiveMap> map = 1;
 }

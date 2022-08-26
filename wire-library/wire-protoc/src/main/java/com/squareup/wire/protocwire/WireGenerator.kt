@@ -1,7 +1,6 @@
 package com.squareup.wire.protocwire
 
 import com.google.protobuf.AbstractMessage
-import com.google.protobuf.DescriptorProtos
 import com.google.protobuf.DescriptorProtos.DescriptorProto
 import com.google.protobuf.DescriptorProtos.EnumDescriptorProto
 import com.google.protobuf.DescriptorProtos.FieldDescriptorProto
@@ -193,13 +192,13 @@ private fun parseMessage(path: List<Int>, helper: SourceCodeHelper, packagePrefi
   val nestedMessagePath = mutableListOf(*path.toTypedArray())
   nestedMessagePath.addAll(listOf(DescriptorProto.NESTED_TYPE_FIELD_NUMBER, 0))
 
-  val mapTypes = mutableMapOf<String, MapEntryType>()
+  val mapTypes = mutableMapOf<String, String>()
   for ((index, nestedType) in message.nestedTypeList.withIndex()) {
     if (nestedType.options.mapEntry) {
       val nestedTypeFullyQualifiedName = "$packagePrefix.${message.name}.${nestedType.name}"
-      val key = nestedType.fieldList[0]
-      val value = nestedType.fieldList[1]
-      mapTypes[nestedTypeFullyQualifiedName] = MapEntryType(key, value)
+      val keyTypeName = parseType(nestedType.fieldList[0])
+      val valueTypeName = parseType(nestedType.fieldList[1])
+      mapTypes[nestedTypeFullyQualifiedName] = "map<${keyTypeName}, ${valueTypeName}>"
       continue
     }
     nestedMessagePath[nestedMessagePath.size - 1] = index
@@ -227,16 +226,15 @@ private fun parseMessage(path: List<Int>, helper: SourceCodeHelper, packagePrefi
   )
 }
 
-private fun parseFields(path: List<Int>, helper: SourceCodeHelper, fieldList: List<FieldDescriptorProto>, mapTypes: MutableMap<String, MapEntryType>, descs: DescriptorSource): List<FieldElement> {
+private fun parseFields(path: List<Int>, helper: SourceCodeHelper, fieldList: List<FieldDescriptorProto>, mapTypes: MutableMap<String, String>, descs: DescriptorSource): List<FieldElement> {
   val result = mutableListOf<FieldElement>()
   val fieldPath = mutableListOf(*path.toTypedArray())
   fieldPath.addAll(listOf(DescriptorProto.FIELD_FIELD_NUMBER, 0))
   for ((index, field) in fieldList.withIndex()) {
     var label = parseLabel(field.label)
     var type = parseType(field)
-    if (mapTypes.contains(type)) {
-      val entryType = mapTypes[type]!!
-      type = "map<${entryType.keyTypeName}, ${entryType.valueTypeName}>"
+    if (mapTypes.keys.contains(type)) {
+      type = mapTypes[type]!!
       label = null
     }
     fieldPath[fieldPath.size - 1] = index
@@ -398,13 +396,4 @@ private class SourceCodeHelper(
     }
     return m
   }
-}
-
-// For helping with parsing map fields.
-class MapEntryType(
-  keyProto: DescriptorProtos.FieldDescriptorProto,
-  valueProto: DescriptorProtos.FieldDescriptorProto,
-) {
-  val keyTypeName = parseType(keyProto)
-  val valueTypeName = parseType(valueProto)
 }
