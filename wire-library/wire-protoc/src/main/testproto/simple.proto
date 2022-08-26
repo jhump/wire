@@ -44,6 +44,10 @@ message NestedMsg {
   }
 }
 
+message EnumMsg {
+  Enum enumeration = 1;
+}
+
 // Enum doc comment
 enum Enum {
   // Default/unspecified
