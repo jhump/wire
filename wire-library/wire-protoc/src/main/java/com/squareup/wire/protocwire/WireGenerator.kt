@@ -21,11 +21,14 @@ import com.squareup.wire.schema.CoreLoader
 import com.squareup.wire.schema.EmittingRules
 import com.squareup.wire.schema.ErrorCollector
 import com.squareup.wire.schema.Field
-import com.squareup.wire.schema.KotlinProtocTarget
+import com.squareup.wire.schema.KotlinTarget
 import com.squareup.wire.schema.Linker
 import com.squareup.wire.schema.Location
+import com.squareup.wire.schema.Profile
 import com.squareup.wire.schema.ProfileLoader
 import com.squareup.wire.schema.ProtoFile
+import com.squareup.wire.schema.ProtoType
+import com.squareup.wire.schema.Schema
 import com.squareup.wire.schema.SchemaHandler
 import com.squareup.wire.schema.internal.parser.EnumConstantElement
 import com.squareup.wire.schema.internal.parser.EnumElement
@@ -42,9 +45,30 @@ import okio.BufferedSink
 import okio.FileSystem
 import okio.Path
 import okio.Path.Companion.toPath
+import okio.fakefilesystem.FakeFileSystem
 
 fun <T> TODO(message: String): T {
   throw RuntimeException(message)
+}
+
+class NoOpLogger : WireLogger {
+  override fun artifactHandled(outputPath: Path, qualifiedName: String, targetName: String) {
+  }
+
+  override fun artifactSkipped(type: ProtoType, targetName: String) {
+  }
+
+  override fun unusedRoots(unusedRoots: Set<String>) {
+  }
+
+  override fun unusedPrunes(unusedPrunes: Set<String>) {
+  }
+
+  override fun unusedIncludesInTarget(unusedIncludes: Set<String>) {
+  }
+
+  override fun unusedExcludesInTarget(unusedExcludes: Set<String>) {
+  }
 }
 
 data class CodeGeneratorResponseContext(
@@ -52,13 +76,13 @@ data class CodeGeneratorResponseContext(
   override val sourcePathPaths: Set<String> = emptySet()
 ) : SchemaHandler.Context {
   override val fileSystem: FileSystem
-    get() = TODO("FileSystem")
+    get() = FakeFileSystem()
   override val outDirectory: Path
     get() = "".toPath()
   override val logger: WireLogger
-    get() = TODO("WireLogger")
+    get() = NoOpLogger()
   override val errorCollector: ErrorCollector
-    get() = TODO("ErrorCollector")
+    get() = ErrorCollector()
   override val emittingRules: EmittingRules
     get() = EmittingRules()
   override val claimedDefinitions: ClaimedDefinitions?
@@ -67,8 +91,12 @@ data class CodeGeneratorResponseContext(
   override val module: SchemaHandler.Module?
     get() = null
 
-  override val profileLoader: ProfileLoader?
-    get() = null
+  override val profileLoader: ProfileLoader
+    get() = object : ProfileLoader {
+      override fun loadProfile(name: String, schema: Schema): Profile {
+        return Profile()
+      }
+    }
 
   override fun inSourcePath(protoFile: ProtoFile): Boolean {
     return inSourcePath(protoFile.location)
@@ -108,7 +136,7 @@ class WireGenerator() : CodeGenerator {
     try {
       val schema = linker.link(protoFiles)
       // Create a specific target and just run.
-      KotlinProtocTarget().newHandler().handle(schema, CodeGeneratorResponseContext(response, sourcePaths))
+      KotlinTarget(outDirectory = "").newHandler().handle(schema, CodeGeneratorResponseContext(response, sourcePaths))
     } catch (e: Throwable) {
       // Quality of life improvement.
       val current = LocalDateTime.now()
