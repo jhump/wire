@@ -211,16 +211,19 @@ private fun parseMessage(path: List<Int>, helper: SourceCodeHelper, packagePrefi
     nestedTypes.add(parseEnum(nestedEnumPath, helper, nestedType, descs))
   }
 
-  val messageFields = MessageFields(message.fieldList)
+  val fieldElementList = parseFields(path, helper, message.fieldList, mapTypes, descs)
+  val zippedFields = message.fieldList.zip(fieldElementList) { descriptorProto, fieldElement -> descriptorProto to fieldElement }
+  val oneOfIndexToFields = indexFieldsByOneOf(zippedFields)
+  val fields = zippedFields.filter { pair -> !pair.first.hasOneofIndex() }.map { pair -> pair.second }
   return MessageElement(
     location = info.loc,
     name = message.name,
     documentation = info.comment,
     options = parseOptions(message.options, descs),
     reserveds = emptyList(),
-    fields = parseFields(path, helper, messageFields.fieldList, mapTypes, descs),
+    fields = fields,
     nestedTypes = nestedTypes,
-    oneOfs = parseOneOfs(path, helper, message.oneofDeclList, messageFields, mapTypes, descs),
+    oneOfs = parseOneOfs(path, helper, message.oneofDeclList, oneOfIndexToFields, descs),
     extensions = emptyList(),
     groups = emptyList(),
   )
@@ -229,30 +232,19 @@ private fun parseMessage(path: List<Int>, helper: SourceCodeHelper, packagePrefi
 private fun parseOneOfs(
   path: List<Int>, helper: SourceCodeHelper,
   oneOfDeclList: List<DescriptorProtos.OneofDescriptorProto>,
-  messageFields: MessageFields,
-  mapTypes: MutableMap<String, String>,
+  oneOfMap: Map<Int, List<FieldElement>>,
   descs: DescriptorSource
 ): List<OneOfElement> {
   val info = helper.getLocation(path)
   val result = mutableListOf<OneOfElement>()
   val oneOfPath = mutableListOf(*path.toTypedArray())
   oneOfPath.addAll(listOf(DescriptorProto.ONEOF_DECL_FIELD_NUMBER, 0))
-  val oneOfMap = mutableMapOf<Int, MutableList<Pair<Int, FieldDescriptorProto>>>()
-  for (field in messageFields.oneOfFieldList) {
-    val descriptorProto = field.second
-    if (descriptorProto.hasOneofIndex()) {
-      val oneOfIndexList = oneOfMap[descriptorProto.oneofIndex] ?: mutableListOf()
-      oneOfIndexList.add(field)
-      oneOfMap[descriptorProto.oneofIndex] = oneOfIndexList
-    }
-  }
-
   for (oneOfIndex in oneOfMap.keys) {
-    val oneOfFields = oneOfMap[oneOfIndex]!!
+    val fieldList = oneOfMap[oneOfIndex]!!
     result.add(OneOfElement(
       name = oneOfDeclList[oneOfIndex].name,
       documentation = info.comment,
-      fields = parseFields(path, helper, oneOfFields, mapTypes, descs),
+      fields = fieldList,
       groups = emptyList(),
       options = parseOptions(oneOfDeclList[oneOfIndex].options, descs)
     ))
@@ -260,11 +252,31 @@ private fun parseOneOfs(
   return result
 }
 
-private fun parseFields(path: List<Int>, helper: SourceCodeHelper, fieldList: List<Pair<Int, FieldDescriptorProto>>, mapTypes: MutableMap<String, String>, descs: DescriptorSource): List<FieldElement> {
+/**
+ * The association between the FieldDescriptorProto and the FieldElement is primarily have a way to
+ * look up the oneof index of the field . The FieldElement data type loses this information on the conversion.
+ *
+ * This can be avoided if the FieldElement class contains a reference to the oneof index.
+ */
+private fun indexFieldsByOneOf(
+  fields: List<Pair<FieldDescriptorProto, FieldElement>>
+): Map<Int, List<FieldElement>> {
+  val oneOfMap = mutableMapOf<Int, MutableList<FieldElement>>()
+  for ((descriptor, fieldElement) in fields) {
+    if (descriptor.hasOneofIndex()) {
+      val list = oneOfMap[descriptor.oneofIndex] ?: mutableListOf()
+      list.add(fieldElement)
+      oneOfMap[descriptor.oneofIndex] = list
+    }
+  }
+  return oneOfMap
+}
+
+private fun parseFields(path: List<Int>, helper: SourceCodeHelper, fieldList: List<FieldDescriptorProto>, mapTypes: MutableMap<String, String>, descs: DescriptorSource): List<FieldElement> {
   val result = mutableListOf<FieldElement>()
   val fieldPath = mutableListOf(*path.toTypedArray())
   fieldPath.addAll(listOf(DescriptorProto.FIELD_FIELD_NUMBER, 0))
-  for ((index, field) in fieldList) {
+  for ((index, field) in fieldList.withIndex()) {
     var label = parseLabel(field.label)
     var type = parseType(field)
     if (mapTypes.keys.contains(type)) {
