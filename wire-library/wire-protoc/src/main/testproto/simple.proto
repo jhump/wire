@@ -67,3 +67,16 @@ message RecursiveMap {
   // Recursive reference for map
   map<string, RecursiveMap> map = 1;
 }
+
+// OneOfMsg
+message OneOfMsg {
+  // oneof declaration
+  oneof some_oneof {
+    // oneof str_a
+    string str_a = 1;
+    // oneof str_b
+    string str_b = 2;
+  }
+  // present
+  string always_present = 3;
+}

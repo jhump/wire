@@ -1,6 +1,7 @@
 package com.squareup.wire.protocwire
 
 import com.google.protobuf.AbstractMessage
+import com.google.protobuf.DescriptorProtos
 import com.google.protobuf.DescriptorProtos.DescriptorProto
 import com.google.protobuf.DescriptorProtos.EnumDescriptorProto
 import com.google.protobuf.DescriptorProtos.FieldDescriptorProto
@@ -30,6 +31,7 @@ import com.squareup.wire.schema.internal.parser.EnumConstantElement
 import com.squareup.wire.schema.internal.parser.EnumElement
 import com.squareup.wire.schema.internal.parser.FieldElement
 import com.squareup.wire.schema.internal.parser.MessageElement
+import com.squareup.wire.schema.internal.parser.OneOfElement
 import com.squareup.wire.schema.internal.parser.OptionElement
 import com.squareup.wire.schema.internal.parser.ProtoFileElement
 import com.squareup.wire.schema.internal.parser.TypeElement
@@ -88,9 +90,7 @@ data class CodeGeneratorResponseContext(
   }
 }
 
-class WireGenerator(
-
-) : CodeGenerator {
+class WireGenerator() : CodeGenerator {
   override fun generate(request: PluginProtos.CodeGeneratorRequest, descs: DescriptorSource, response: Plugin.Response) {
     debug(request)
     val loader = CoreLoader
@@ -211,25 +211,60 @@ private fun parseMessage(path: List<Int>, helper: SourceCodeHelper, packagePrefi
     nestedTypes.add(parseEnum(nestedEnumPath, helper, nestedType, descs))
   }
 
+  val messageFields = MessageFields(message.fieldList)
   return MessageElement(
     location = info.loc,
     name = message.name,
     documentation = info.comment,
     options = parseOptions(message.options, descs),
     reserveds = emptyList(),
-    fields = parseFields(path, helper, message.fieldList, mapTypes, descs),
+    fields = parseFields(path, helper, messageFields.fieldList, mapTypes, descs),
     nestedTypes = nestedTypes,
-    oneOfs = emptyList(),
+    oneOfs = parseOneOfs(path, helper, message.oneofDeclList, messageFields, mapTypes, descs),
     extensions = emptyList(),
     groups = emptyList(),
   )
 }
 
-private fun parseFields(path: List<Int>, helper: SourceCodeHelper, fieldList: List<FieldDescriptorProto>, mapTypes: MutableMap<String, String>, descs: DescriptorSource): List<FieldElement> {
+private fun parseOneOfs(
+  path: List<Int>, helper: SourceCodeHelper,
+  oneOfDeclList: List<DescriptorProtos.OneofDescriptorProto>,
+  messageFields: MessageFields,
+  mapTypes: MutableMap<String, String>,
+  descs: DescriptorSource
+): List<OneOfElement> {
+  val info = helper.getLocation(path)
+  val result = mutableListOf<OneOfElement>()
+  val oneOfPath = mutableListOf(*path.toTypedArray())
+  oneOfPath.addAll(listOf(DescriptorProto.ONEOF_DECL_FIELD_NUMBER, 0))
+  val oneOfMap = mutableMapOf<Int, MutableList<Pair<Int, FieldDescriptorProto>>>()
+  for (field in messageFields.oneOfFieldList) {
+    val descriptorProto = field.second
+    if (descriptorProto.hasOneofIndex()) {
+      val oneOfIndexList = oneOfMap[descriptorProto.oneofIndex] ?: mutableListOf()
+      oneOfIndexList.add(field)
+      oneOfMap[descriptorProto.oneofIndex] = oneOfIndexList
+    }
+  }
+
+  for (oneOfIndex in oneOfMap.keys) {
+    val oneOfFields = oneOfMap[oneOfIndex]!!
+    result.add(OneOfElement(
+      name = oneOfDeclList[oneOfIndex].name,
+      documentation = info.comment,
+      fields = parseFields(path, helper, oneOfFields, mapTypes, descs),
+      groups = emptyList(),
+      options = parseOptions(oneOfDeclList[oneOfIndex].options, descs)
+    ))
+  }
+  return result
+}
+
+private fun parseFields(path: List<Int>, helper: SourceCodeHelper, fieldList: List<Pair<Int, FieldDescriptorProto>>, mapTypes: MutableMap<String, String>, descs: DescriptorSource): List<FieldElement> {
   val result = mutableListOf<FieldElement>()
   val fieldPath = mutableListOf(*path.toTypedArray())
   fieldPath.addAll(listOf(DescriptorProto.FIELD_FIELD_NUMBER, 0))
-  for ((index, field) in fieldList.withIndex()) {
+  for ((index, field) in fieldList) {
     var label = parseLabel(field.label)
     var type = parseType(field)
     if (mapTypes.keys.contains(type)) {
@@ -396,3 +431,15 @@ private class SourceCodeHelper(
     return m
   }
 }
+
+/**
+ * Helper object for managing message oneof fields and non-oneof fields.
+ */
+private class MessageFields(
+  fieldList: List<FieldDescriptorProto>,
+) {
+  val internal = fieldList.mapIndexed { index, fieldDescriptorProto -> index to fieldDescriptorProto }
+  val oneOfFieldList: List<Pair<Int, FieldDescriptorProto>> = internal.filter { elm -> elm.second.hasOneofIndex() }
+  val fieldList: List<Pair<Int, FieldDescriptorProto>> = internal.filter { elm -> !elm.second.hasOneofIndex() }
+}
+
