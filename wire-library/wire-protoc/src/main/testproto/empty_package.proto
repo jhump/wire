@@ -1,0 +1,7 @@
+message RecursiveRepeated {
+  repeated RecursiveRepeated list = 1;
+}
+
+message RecursiveMap {
+  map<string, RecursiveMap> map = 1;
+}
