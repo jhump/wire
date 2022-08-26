@@ -443,15 +443,3 @@ private class SourceCodeHelper(
     return m
   }
 }
-
-/**
- * Helper object for managing message oneof fields and non-oneof fields.
- */
-private class MessageFields(
-  fieldList: List<FieldDescriptorProto>,
-) {
-  val internal = fieldList.mapIndexed { index, fieldDescriptorProto -> index to fieldDescriptorProto }
-  val oneOfFieldList: List<Pair<Int, FieldDescriptorProto>> = internal.filter { elm -> elm.second.hasOneofIndex() }
-  val fieldList: List<Pair<Int, FieldDescriptorProto>> = internal.filter { elm -> !elm.second.hasOneofIndex() }
-}
-
