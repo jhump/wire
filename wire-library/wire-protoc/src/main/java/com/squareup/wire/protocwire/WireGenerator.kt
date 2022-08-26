@@ -214,7 +214,7 @@ private fun parseMessage(path: List<Int>, helper: SourceCodeHelper, message: Des
 private fun parseOneOfs(
   path: List<Int>, helper: SourceCodeHelper,
   oneOfDeclList: List<DescriptorProtos.OneofDescriptorProto>,
-  fields: List<FieldDescriptorProto>,
+  oneOfFieldsList: List<FieldDescriptorProto>,
   descs: DescriptorSource
 ): List<OneOfElement> {
   val info = helper.getLocation(path)
@@ -222,10 +222,7 @@ private fun parseOneOfs(
   val oneOfPath = mutableListOf(*path.toTypedArray())
   oneOfPath.addAll(listOf(DescriptorProto.ONEOF_DECL_FIELD_NUMBER, 0))
   val oneOfMap = mutableMapOf<Int, MutableList<FieldDescriptorProto>>()
-  for (field in fields) {
-    if (!field.hasOneofIndex()) {
-      continue
-    }
+  for (field in oneOfFieldsList) {
     val oneOfIndexList = oneOfMap[field.oneofIndex] ?: mutableListOf()
     oneOfIndexList.add(field)
     oneOfMap[field.oneofIndex] = oneOfIndexList
