@@ -304,7 +304,7 @@ private fun parseLabel(label: FieldDescriptorProto.Label): Field.Label? {
   }
 }
 
-private fun <T: ExtendableMessage<T>> parseOptions(options: T, descs: DescriptorSource): List<OptionElement> {
+private fun <T : ExtendableMessage<T>> parseOptions(options: T, descs: DescriptorSource): List<OptionElement> {
   val optDesc = options.descriptorForType
   val overrideDesc = descs.findMessageTypeByName(optDesc.fullName)
   if (overrideDesc != null) {
@@ -342,7 +342,7 @@ private fun valueOf(value: Any): OptionValueAndKind {
 
 private fun toCharArray(bytes: ByteArray): CharArray {
   val ch = CharArray(bytes.size)
-  bytes.forEachIndexed{ index, element -> ch[index] = element.toInt().toChar() }
+  bytes.forEachIndexed { index, element -> ch[index] = element.toInt().toChar() }
   return ch
 }
 
