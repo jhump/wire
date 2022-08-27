@@ -108,8 +108,6 @@ abstract class SchemaHandler {
 
     fun createDirectories(dir: Path, mustCreate: Boolean = false)
 
-    fun <T> write(file: Path, mustCreate: Boolean = false, writerAction: BufferedSink.() -> T): T
-
     fun write(file: Path, str: String)
   }
 
@@ -173,12 +171,8 @@ abstract class SchemaHandler {
       fileSystem.createDirectories(dir, mustCreate)
     }
 
-    override fun <T> write(file: Path, mustCreate: Boolean, writerAction: BufferedSink.() -> T): T {
-      return fileSystem.write(file, mustCreate, writerAction)
-    }
-
     override fun write(file: Path, str: String) {
-      write(file, false) {
+      fileSystem.write(file, false) {
         write(str.commonAsUtf8ToByteArray())
       }
     }

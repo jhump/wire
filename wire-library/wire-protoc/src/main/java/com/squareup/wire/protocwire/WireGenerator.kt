@@ -106,10 +106,6 @@ data class ProtocContext(
   override fun createDirectories(dir: Path, mustCreate: Boolean) {
   }
 
-  override fun <T> write(file: Path, mustCreate: Boolean, writerAction: BufferedSink.() -> T): T {
-    return Buffer().writerAction()
-  }
-
   override fun write(file: Path, str: String) {
     response.addFile(file.name, str)
   }
