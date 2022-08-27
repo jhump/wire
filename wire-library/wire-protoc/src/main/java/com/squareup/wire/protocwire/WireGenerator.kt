@@ -41,8 +41,6 @@ import com.squareup.wire.schema.internal.parser.ProtoFileElement
 import com.squareup.wire.schema.internal.parser.TypeElement
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
-import okio.Buffer
-import okio.BufferedSink
 import okio.Path
 import okio.Path.Companion.toPath
 
