@@ -30,7 +30,6 @@ import com.squareup.wire.schema.ProtoFile
 import com.squareup.wire.schema.ProtoType
 import com.squareup.wire.schema.Schema
 import com.squareup.wire.schema.SchemaHandler
-import com.squareup.wire.schema.SwiftTarget
 import com.squareup.wire.schema.Target
 import com.squareup.wire.schema.internal.parser.EnumConstantElement
 import com.squareup.wire.schema.internal.parser.EnumElement
@@ -44,10 +43,8 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import okio.Buffer
 import okio.BufferedSink
-import okio.FileSystem
 import okio.Path
 import okio.Path.Companion.toPath
-import okio.fakefilesystem.FakeFileSystem
 
 fun <T> TODO(message: String): T {
   throw RuntimeException(message)
@@ -73,7 +70,7 @@ class NoOpLogger : WireLogger {
   }
 }
 
-data class CodeGeneratorResponseContext(
+data class ProtocContext(
   private val response: Plugin.Response,
   override val sourcePathPaths: Set<String> = emptySet()
 ) : SchemaHandler.Context {
@@ -138,7 +135,7 @@ class WireGenerator(
     try {
       val schema = linker.link(protoFiles)
       // Create a specific target and just run.
-      target.newHandler().handle(schema, CodeGeneratorResponseContext(response, sourcePaths))
+      target.newHandler().handle(schema, ProtocContext(response, sourcePaths))
     } catch (e: Throwable) {
       // Quality of life improvement.
       val current = LocalDateTime.now()
