@@ -44,52 +44,35 @@ import java.time.format.DateTimeFormatter
 import okio.Path
 import okio.Path.Companion.toPath
 
-fun <T> TODO(message: String): T {
-  throw RuntimeException(message)
-}
-
 class NoOpLogger : WireLogger {
-  override fun artifactHandled(outputPath: Path, qualifiedName: String, targetName: String) {
-  }
+  override fun artifactHandled(outputPath: Path, qualifiedName: String, targetName: String) {}
 
-  override fun artifactSkipped(type: ProtoType, targetName: String) {
-  }
+  override fun artifactSkipped(type: ProtoType, targetName: String) {}
 
-  override fun unusedRoots(unusedRoots: Set<String>) {
-  }
+  override fun unusedRoots(unusedRoots: Set<String>) {}
 
-  override fun unusedPrunes(unusedPrunes: Set<String>) {
-  }
+  override fun unusedPrunes(unusedPrunes: Set<String>) {}
 
-  override fun unusedIncludesInTarget(unusedIncludes: Set<String>) {
-  }
+  override fun unusedIncludesInTarget(unusedIncludes: Set<String>) {}
 
-  override fun unusedExcludesInTarget(unusedExcludes: Set<String>) {
-  }
+  override fun unusedExcludesInTarget(unusedExcludes: Set<String>) {}
 }
 
 data class ProtocContext(
   private val response: Plugin.Response,
-  override val sourcePathPaths: Set<String> = emptySet()
+  override val sourcePathPaths: Set<String>
 ) : SchemaHandler.Context {
-  override val outDirectory: Path
-    get() = "".toPath()
-  override val logger: WireLogger
-    get() = NoOpLogger()
-  override val errorCollector: ErrorCollector
-    get() = ErrorCollector()
-  override val emittingRules: EmittingRules
-    get() = EmittingRules()
-  override val claimedDefinitions: ClaimedDefinitions?
-    get() = null
+  override val outDirectory: Path = "".toPath()
+  override val logger: WireLogger = NoOpLogger()
+  override val errorCollector: ErrorCollector = ErrorCollector()
+  override val emittingRules: EmittingRules = EmittingRules()
+  override val claimedDefinitions: ClaimedDefinitions? = null
   override val claimedPaths: ClaimedPaths = ClaimedPaths()
-  override val module: SchemaHandler.Module?
-    get() = null
-
-  override val profileLoader: ProfileLoader
-    get() = object : ProfileLoader {
+  override val module: SchemaHandler.Module? = null
+  override val profileLoader: ProfileLoader = object : ProfileLoader {
+    private val profile = Profile()
       override fun loadProfile(name: String, schema: Schema): Profile {
-        return Profile()
+        return profile
       }
     }
 
@@ -102,6 +85,7 @@ data class ProtocContext(
   }
 
   override fun createDirectories(dir: Path, mustCreate: Boolean) {
+    // noop: Directory creation is handled within protoc.
   }
 
   override fun write(file: Path, str: String) {
@@ -353,7 +337,7 @@ private fun parseType(field: FieldDescriptorProto): String {
     }
     // TODO: Figure out group types
     FieldDescriptorProto.Type.TYPE_GROUP -> ""
-    else -> TODO("else case found for ${field.type}")
+    else -> throw RuntimeException("else case found for ${field.type}")
   }
 }
 
