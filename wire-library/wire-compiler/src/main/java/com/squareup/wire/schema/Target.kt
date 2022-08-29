@@ -124,7 +124,7 @@ data class JavaTarget(
           .withOptions(emitDeclaredOptions, emitAppliedOptions)
           .withBuildersOnly(buildersOnly)
 
-        context.fileSystem.createDirectories(context.outDirectory)
+        context.createDirectories(context.outDirectory)
 
         super.handle(schema, context)
       }
@@ -168,10 +168,8 @@ data class JavaTarget(
           outDirectory, "${javaFile.packageName}.${javaFile.typeSpec.name}", "Java"
         )
         try {
-          context.fileSystem.createDirectories(filePath.parent!!)
-          context.fileSystem.write(filePath) {
-            writeUtf8(javaFile.toString())
-          }
+          context.createDirectories(filePath.parent!!)
+          context.write(filePath, javaFile.toString())
         } catch (e: IOException) {
           throw IOException(
             "Error emitting ${javaFile.packageName}.${javaFile.typeSpec.name} to $outDirectory", e
@@ -194,140 +192,6 @@ data class JavaTarget(
       exclusive = exclusive,
       outDirectory = outDirectory,
     )
-  }
-}
-data class KotlinProtocTarget(
-  override val includes: List<String> = listOf("*"),
-  override val excludes: List<String> = listOf(),
-
-  override val exclusive: Boolean = true,
-
-  /** True for emitted types to implement `android.os.Parcelable`. */
-  val android: Boolean = false,
-
-  /** True for emitted types to implement APIs for easier migration from the Java target. */
-  val javaInterop: Boolean = false,
-
-  /** True to emit types for options declared on messages, fields, etc. */
-  val emitDeclaredOptions: Boolean = true,
-
-  /** True to emit annotations for options applied on messages, fields, etc. */
-  val emitAppliedOptions: Boolean = true,
-
-  /** Blocking or suspending. */
-  val rpcCallStyle: RpcCallStyle = RpcCallStyle.SUSPENDING,
-
-  /** Client or server. */
-  val rpcRole: RpcRole = RpcRole.CLIENT,
-
-  /** True for emitted services to implement one interface per RPC. */
-  val singleMethodServices: Boolean = false,
-
-  /**
-   * If a oneof has more than or [boxOneOfsMinSize] fields, it will be generated using boxed oneofs
-   * as defined in [OneOf][com.squareup.wire.OneOf].
-   */
-  val boxOneOfsMinSize: Int = 5_000,
-
-  /** True to also generate gRPC server-compatible classes. Experimental feature. */
-  val grpcServerCompatible: Boolean = false,
-
-  /**
-   * If present, generated services classes will use this as a suffix instead of inferring one
-   * from the [rpcRole].
-   */
-  val nameSuffix: String? = null,
-  override val outDirectory: String = "dne",
-) : Target() {
-  override fun copyTarget(includes: List<String>, excludes: List<String>, exclusive: Boolean, outDirectory: String): Target {
-    TODO("copyTarget")
-  }
-
-  override fun newHandler(): SchemaHandler {
-    return object : SchemaHandler() {
-      private lateinit var kotlinGenerator: KotlinGenerator
-
-      override fun handle(schema: Schema, context: Context) {
-        val profileName = if (android) "android" else "java"
-        val profile = context.profileLoader?.loadProfile(profileName, schema) ?: Profile()
-        kotlinGenerator = KotlinGenerator(
-          schema = schema,
-          profile = profile,
-          emitAndroid = android,
-          javaInterop = javaInterop,
-          emitDeclaredOptions = emitDeclaredOptions,
-          emitAppliedOptions = emitAppliedOptions,
-          rpcCallStyle = rpcCallStyle,
-          rpcRole = rpcRole,
-          boxOneOfsMinSize = boxOneOfsMinSize,
-          grpcServerCompatible = grpcServerCompatible,
-          nameSuffix = nameSuffix,
-        )
-        super.handle(schema, context)
-      }
-
-      override fun handle(type: Type, context: Context): Path? {
-        if (KotlinGenerator.builtInType(type.type)) return null
-
-        val typeSpec = kotlinGenerator.generateType(type)
-        val className = kotlinGenerator.generatedTypeName(type)
-        return write(className, typeSpec, type.type, type.location, context)
-      }
-
-      override fun handle(service: Service, context: Context): List<Path> {
-        if (rpcRole === RpcRole.NONE) return emptyList()
-
-        val generatedPaths = mutableListOf<Path>()
-
-        if (singleMethodServices) {
-          service.rpcs.forEach { rpc ->
-            val map = kotlinGenerator.generateServiceTypeSpecs(service, rpc)
-            for ((className, typeSpec) in map) {
-              generatedPaths.add(
-                write(className, typeSpec, service.type, service.location, context)
-              )
-            }
-          }
-        } else {
-          val map = kotlinGenerator.generateServiceTypeSpecs(service, null)
-          for ((className, typeSpec) in map) {
-            generatedPaths.add(write(className, typeSpec, service.type, service.location, context))
-          }
-        }
-
-        return generatedPaths
-      }
-
-      override fun handle(extend: Extend, field: Field, context: Context): Path? {
-        val typeSpec = kotlinGenerator.generateOptionType(extend, field) ?: return null
-        val name = kotlinGenerator.generatedTypeName(extend.member(field))
-        return write(name, typeSpec, field.qualifiedName, field.location, context)
-      }
-
-      private fun write(
-        name: ClassName,
-        typeSpec: TypeSpec,
-        source: Any,
-        location: Location,
-        context: Context,
-      ): Path {
-        val modulePath = context.outDirectory
-        val kotlinFile = FileSpec.builder(name.packageName, name.simpleName)
-          .addFileComment(WireCompiler.CODE_GENERATED_BY_WIRE)
-          .addFileComment("\nSource: %L in %L", source, location.withPathOnly())
-          .addType(typeSpec)
-          .build()
-        val filePath = modulePath /
-          kotlinFile.packageName.replace(".", "/") /
-          "${kotlinFile.name}.kt"
-        try {
-          context.write(filePath, kotlinFile.toString())
-        } catch (e: IOException) {
-          throw IOException("Error emitting ${kotlinFile.packageName}.$source to $outDirectory", e)
-        }
-        return filePath
-      }
-    }
   }
 }
 
@@ -404,7 +268,7 @@ data class KotlinTarget(
           nameSuffix = nameSuffix,
           buildersOnly = buildersOnly,
         )
-        context.fileSystem.createDirectories(context.outDirectory)
+        context.createDirectories(context.outDirectory)
         super.handle(schema, context)
       }
 
@@ -467,10 +331,8 @@ data class KotlinTarget(
           "Kotlin"
         )
         try {
-          context.fileSystem.createDirectories(filePath.parent!!)
-          context.fileSystem.write(filePath) {
-            writeUtf8(kotlinFile.toString())
-          }
+          context.createDirectories(filePath.parent!!)
+          context.write(filePath, kotlinFile.toString())
         } catch (e: IOException) {
           throw IOException("Error emitting ${kotlinFile.packageName}.$source to $outDirectory", e)
         }
@@ -507,7 +369,7 @@ data class SwiftTarget(
 
       override fun handle(schema: Schema, context: Context) {
         generator = SwiftGenerator(schema, context.module?.upstreamTypes ?: mapOf())
-        context.fileSystem.createDirectories(context.outDirectory)
+        context.createDirectories(context.outDirectory)
         super.handle(schema, context)
       }
 
@@ -527,9 +389,7 @@ data class SwiftTarget(
 
         val filePath = modulePath / "${swiftFile.name}.swift"
         try {
-          context.fileSystem.write(filePath) {
-            writeUtf8(swiftFile.toString())
-          }
+          context.write(filePath, swiftFile.toString())
         } catch (e: IOException) {
           throw IOException(
             "Error emitting ${swiftFile.moduleName}.${typeName.canonicalName} to $modulePath", e
@@ -576,7 +436,7 @@ data class ProtoTarget(
   override fun newHandler(): SchemaHandler {
     return object : SchemaHandler() {
       override fun handle(schema: Schema, context: Context) {
-        context.fileSystem.createDirectories(context.outDirectory)
+        context.createDirectories(context.outDirectory)
         val outDirectory = context.outDirectory
 
         for (protoFile in schema.protoFiles) {
@@ -589,10 +449,8 @@ data class ProtoTarget(
           context.logger.artifactHandled(outputDirectory, protoFile.location.path, "Proto")
 
           try {
-            context.fileSystem.createDirectories(outputFilePath.parent!!)
-            context.fileSystem.write(outputFilePath) {
-              writeUtf8(protoFile.toSchema())
-            }
+            context.createDirectories(outputFilePath.parent!!)
+            context.write(outputFilePath, protoFile.toSchema())
           } catch (e: IOException) {
             throw IOException("Error emitting $outputFilePath to $outDirectory", e)
           }

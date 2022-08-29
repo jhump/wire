@@ -64,8 +64,6 @@ abstract class SchemaHandler {
   abstract fun handle(extend: Extend, field: Field, context: Context): Path?
 
   interface Context {
-    /** To be used by the [SchemaHandler] for reading/writing operations on disk. */
-    val fileSystem: FileSystem
     /** Location on [fileSystem] where the [SchemaHandler] is to write files, if it needs to. */
     val outDirectory: Path
     /** Event-listener like logger with which [SchemaHandler] can notify handled artifacts. */
@@ -110,8 +108,6 @@ abstract class SchemaHandler {
 
     fun createDirectories(dir: Path, mustCreate: Boolean = false)
 
-    fun <T> write(file: Path, mustCreate: Boolean = false, writerAction: BufferedSink.() -> T): T
-
     fun write(file: Path, str: String)
   }
 
@@ -121,7 +117,7 @@ abstract class SchemaHandler {
    */
   data class FileSystemContext(
     /** To be used by the [SchemaHandler] for reading/writing operations on disk. */
-    override val fileSystem: FileSystem,
+    val fileSystem: FileSystem,
     /** Location on [fileSystem] where the [SchemaHandler] is to write files, if it needs to. */
     override val outDirectory: Path,
     /** Event-listener like logger with which [SchemaHandler] can notify handled artifacts. */
@@ -175,12 +171,8 @@ abstract class SchemaHandler {
       fileSystem.createDirectories(dir, mustCreate)
     }
 
-    override fun <T> write(file: Path, mustCreate: Boolean, writerAction: BufferedSink.() -> T): T {
-      return fileSystem.write(file, mustCreate, writerAction)
-    }
-
     override fun write(file: Path, str: String) {
-      write(file, false) {
+      fileSystem.write(file, false) {
         write(str.commonAsUtf8ToByteArray())
       }
     }

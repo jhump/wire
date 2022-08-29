@@ -21,12 +21,16 @@ import com.squareup.wire.schema.CoreLoader
 import com.squareup.wire.schema.EmittingRules
 import com.squareup.wire.schema.ErrorCollector
 import com.squareup.wire.schema.Field
-import com.squareup.wire.schema.KotlinProtocTarget
+import com.squareup.wire.schema.KotlinTarget
 import com.squareup.wire.schema.Linker
 import com.squareup.wire.schema.Location
+import com.squareup.wire.schema.Profile
 import com.squareup.wire.schema.ProfileLoader
 import com.squareup.wire.schema.ProtoFile
+import com.squareup.wire.schema.ProtoType
+import com.squareup.wire.schema.Schema
 import com.squareup.wire.schema.SchemaHandler
+import com.squareup.wire.schema.Target
 import com.squareup.wire.schema.internal.parser.EnumConstantElement
 import com.squareup.wire.schema.internal.parser.EnumElement
 import com.squareup.wire.schema.internal.parser.FieldElement
@@ -37,38 +41,40 @@ import com.squareup.wire.schema.internal.parser.ProtoFileElement
 import com.squareup.wire.schema.internal.parser.TypeElement
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
-import okio.Buffer
-import okio.BufferedSink
-import okio.FileSystem
 import okio.Path
 import okio.Path.Companion.toPath
 
-fun <T> TODO(message: String): T {
-  throw RuntimeException(message)
+class NoOpLogger : WireLogger {
+  override fun artifactHandled(outputPath: Path, qualifiedName: String, targetName: String) {}
+
+  override fun artifactSkipped(type: ProtoType, targetName: String) {}
+
+  override fun unusedRoots(unusedRoots: Set<String>) {}
+
+  override fun unusedPrunes(unusedPrunes: Set<String>) {}
+
+  override fun unusedIncludesInTarget(unusedIncludes: Set<String>) {}
+
+  override fun unusedExcludesInTarget(unusedExcludes: Set<String>) {}
 }
 
-data class CodeGeneratorResponseContext(
+data class ProtocContext(
   private val response: Plugin.Response,
-  override val sourcePathPaths: Set<String> = emptySet()
+  override val sourcePathPaths: Set<String>
 ) : SchemaHandler.Context {
-  override val fileSystem: FileSystem
-    get() = TODO("FileSystem")
-  override val outDirectory: Path
-    get() = "".toPath()
-  override val logger: WireLogger
-    get() = TODO("WireLogger")
-  override val errorCollector: ErrorCollector
-    get() = TODO("ErrorCollector")
-  override val emittingRules: EmittingRules
-    get() = EmittingRules()
-  override val claimedDefinitions: ClaimedDefinitions?
-    get() = null
+  override val outDirectory: Path = "".toPath()
+  override val logger: WireLogger = NoOpLogger()
+  override val errorCollector: ErrorCollector = ErrorCollector()
+  override val emittingRules: EmittingRules = EmittingRules()
+  override val claimedDefinitions: ClaimedDefinitions? = null
   override val claimedPaths: ClaimedPaths = ClaimedPaths()
-  override val module: SchemaHandler.Module?
-    get() = null
-
-  override val profileLoader: ProfileLoader?
-    get() = null
+  override val module: SchemaHandler.Module? = null
+  override val profileLoader: ProfileLoader = object : ProfileLoader {
+    private val profile = Profile()
+      override fun loadProfile(name: String, schema: Schema): Profile {
+        return profile
+      }
+    }
 
   override fun inSourcePath(protoFile: ProtoFile): Boolean {
     return inSourcePath(protoFile.location)
@@ -79,10 +85,7 @@ data class CodeGeneratorResponseContext(
   }
 
   override fun createDirectories(dir: Path, mustCreate: Boolean) {
-  }
-
-  override fun <T> write(file: Path, mustCreate: Boolean, writerAction: BufferedSink.() -> T): T {
-    return Buffer().writerAction()
+    // noop: Directory creation is handled within protoc.
   }
 
   override fun write(file: Path, str: String) {
@@ -90,7 +93,9 @@ data class CodeGeneratorResponseContext(
   }
 }
 
-class WireGenerator() : CodeGenerator {
+class WireGenerator(
+  private val target: Target
+) : CodeGenerator {
   override fun generate(request: PluginProtos.CodeGeneratorRequest, descs: DescriptorSource, response: Plugin.Response) {
     debug(request)
     val loader = CoreLoader
@@ -108,7 +113,7 @@ class WireGenerator() : CodeGenerator {
     try {
       val schema = linker.link(protoFiles)
       // Create a specific target and just run.
-      KotlinProtocTarget().newHandler().handle(schema, CodeGeneratorResponseContext(response, sourcePaths))
+      target.newHandler().handle(schema, ProtocContext(response, sourcePaths))
     } catch (e: Throwable) {
       // Quality of life improvement.
       val current = LocalDateTime.now()
@@ -121,7 +126,8 @@ class WireGenerator() : CodeGenerator {
   companion object {
     @JvmStatic
     fun main(args: Array<String>) {
-      Plugin.run(WireGenerator())
+      val target = KotlinTarget(outDirectory = "")
+      Plugin.run(WireGenerator(target))
     }
   }
 }
@@ -324,7 +330,7 @@ private fun parseType(field: FieldDescriptorProto): String {
     }
     // TODO: Figure out group types
     FieldDescriptorProto.Type.TYPE_GROUP -> ""
-    else -> TODO("else case found for ${field.type}")
+    else -> throw RuntimeException("else case found for ${field.type}")
   }
 }
 
