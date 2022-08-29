@@ -8,6 +8,3 @@ plugins:
   - name: connect-kotlin
     out: gen/proto/connectkotlin
     path: ./wire-protoc/protoc-gen-wire-kotlin
-    opt:
-      - paths=source_relative
-

@@ -146,6 +146,13 @@ private fun parseFileDescriptor(fileDescriptor: FileDescriptorProto, descs: Desc
     types.add(parseEnum(messagePath, helper, enumType, descs))
   }
 
+  for ((index, dependencyFile) in fileDescriptor.dependencyList.withIndex()) {
+    if (index in fileDescriptor.publicDependencyList.toSet()) {
+      publicImports.add(dependencyFile)
+    } else {
+      imports.add(dependencyFile)
+    }
+  }
 
   return ProtoFileElement(
     location = Location.get(fileDescriptor.name),
@@ -155,7 +162,7 @@ private fun parseFileDescriptor(fileDescriptor: FileDescriptorProto, descs: Desc
     types = types,
     services = emptyList(),
     options = parseOptions(fileDescriptor.options, descs),
-    syntax = Syntax.PROTO_3,
+    syntax = if (fileDescriptor.hasSyntax()) Syntax[fileDescriptor.syntax] else Syntax.PROTO_2,
   )
 }
 
