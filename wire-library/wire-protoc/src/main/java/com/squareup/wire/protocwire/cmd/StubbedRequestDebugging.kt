@@ -1,8 +1,9 @@
-package com.squareup.wire.protocwire
+package com.squareup.wire.protocwire.cmd
 
 import com.google.protobuf.compiler.PluginProtos
+import com.squareup.wire.protocwire.Plugin
+import com.squareup.wire.protocwire.WireGenerator
 import com.squareup.wire.schema.KotlinTarget
-import com.squareup.wire.schema.SwiftTarget
 import java.io.File
 import java.io.InputStream
 
@@ -12,6 +13,9 @@ val stubbedRequestFile = "$devPath/wire/wire-library/request.binary"
 
 class StubbedRequestDebugging {
   companion object {
+    /**
+     * Helper function used to capture code generation requests for debug/break point execution.
+     */
     fun debug(request: PluginProtos.CodeGeneratorRequest) {
       val directory = File(devPath)
       if (!directory.exists()) {

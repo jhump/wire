@@ -16,7 +16,6 @@ import com.google.protobuf.compiler.PluginProtos
 import com.squareup.wire.Syntax
 import com.squareup.wire.WireLogger
 import com.squareup.wire.protocwire.Plugin.DescriptorSource
-import com.squareup.wire.protocwire.StubbedRequestDebugging.Companion.debug
 import com.squareup.wire.schema.ClaimedDefinitions
 import com.squareup.wire.schema.ClaimedPaths
 import com.squareup.wire.schema.CoreLoader
@@ -101,7 +100,6 @@ class WireGenerator(
   private val target: Target
 ) : CodeGenerator {
   override fun generate(request: PluginProtos.CodeGeneratorRequest, descs: DescriptorSource, response: Plugin.Response) {
-    debug(request)
     val loader = CoreLoader
     val errorCollector = ErrorCollector()
     val linker = Linker(loader, errorCollector, permitPackageCycles = true, loadExhaustively = true)
