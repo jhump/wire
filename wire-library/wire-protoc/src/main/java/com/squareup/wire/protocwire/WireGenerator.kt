@@ -93,7 +93,7 @@ data class ProtocContext(
   }
 
   override fun write(file: Path, str: String) {
-    response.addFile(file.name, str)
+    response.addFile(file.toString(), str)
   }
 }
 
@@ -332,7 +332,7 @@ private fun parseFields(
       label = label,
       type = type,
       name = field.name,
-//      defaultValue = field.defaultValue,
+      defaultValue = if (field.hasDefaultValue()) field.defaultValue else null,
       jsonName = field.jsonName,
       tag = field.number,
       documentation = info.comment,
