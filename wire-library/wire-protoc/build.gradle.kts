@@ -9,6 +9,7 @@ plugins {
 tasks {
   // binary: https://www.baeldung.com/kotlin/gradle-executable-jar
   val kotlinGeneratorBinary = register<Jar>("kotlinGeneratorBinary") {
+    archiveBaseName.set("protoc-kotlin")
     dependsOn.addAll(listOf("compileJava", "compileKotlin", "processResources")) // We need this for Gradle optimization to work
     archiveClassifier.set("standalone") // Naming the jar
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
@@ -21,6 +22,7 @@ tasks {
   }
 
   val swiftGeneratorBinary = register<Jar>("swiftGeneratorBinary") {
+    archiveBaseName.set("protoc-swift")
     dependsOn.addAll(listOf("compileJava", "compileKotlin", "processResources")) // We need this for Gradle optimization to work
     archiveClassifier.set("standalone") // Naming the jar
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE

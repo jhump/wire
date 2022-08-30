@@ -92,7 +92,7 @@ data class ProtocContext(
   }
 
   override fun write(file: Path, str: String) {
-    response.addFile(file.name, str)
+    response.addFile(file.toString(), str)
   }
 }
 

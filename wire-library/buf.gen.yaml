@@ -5,9 +5,11 @@ managed:
   go_package_prefix:
     default: plugins/protoc-gen-connect-kotlin
 plugins:
-  - name: connect-kotlin
-    out: gen/proto/connectkotlin
+  - name: protoc-gen-wire-kotlin
+    out: gen/proto/kotlinout
     path: ./wire-protoc/protoc-gen-wire-kotlin
-    opt:
-      - paths=source_relative
+  - name: protoc-gen-wire-swift
+    out: gen/proto/swiftout
+    path: ./wire-protoc/protoc-gen-wire-swift
+
 
