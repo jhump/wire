@@ -253,9 +253,9 @@ private fun parseMessage(baseSourceInfo: SourceInfo, packagePrefix: String, mess
   }
 
   /**
-   * This can be cleaned up a bit more but in order to localize code changes, this solution works.
+   * This can be cleaned up a bit more but this is kept in order to localize code changes.
    *
-   * There is a need to associate the FieldElement object with it's file descriptor proto. There
+   * There is a need to associate the FieldElement object with its file descriptor proto. There
    * is a need for adding new fields to FieldElement but that will be done later.
    */
   val fieldElementList = parseFields(baseSourceInfo, message.fieldList, mapTypes, baseSourceInfo.descriptorSource)
