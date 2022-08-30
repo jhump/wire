@@ -138,13 +138,12 @@ class WireGenerator(
 
 private fun parseFileDescriptor(fileDescriptor: FileDescriptorProto, descs: DescriptorSource): ProtoFileElement {
   val packagePrefix = if (fileDescriptor.hasPackage()) ".${fileDescriptor.`package`}" else ""
-  val helper = SourceCodeHelper(fileDescriptor)
 
   val imports = mutableListOf<String>()
   val publicImports = mutableListOf<String>()
   val types = mutableListOf<TypeElement>()
 
-  val baseSourceInfo = SourceInfo(helper, mutableListOf())
+  val baseSourceInfo = SourceInfo(fileDescriptor)
   for ((sourceInfo, messageType) in fileDescriptor.messageTypeList.withSourceInfo(baseSourceInfo, FileDescriptorProto.MESSAGE_TYPE_FIELD_NUMBER)) {
     types.add(parseMessage(sourceInfo, packagePrefix, messageType, descs))
   }
