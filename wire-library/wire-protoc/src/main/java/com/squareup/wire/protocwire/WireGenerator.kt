@@ -506,17 +506,17 @@ private class SourceInfo(
     return helper.getLocation(path)
   }
 
-  fun new(): SourceInfo {
+  fun clone(): SourceInfo {
     return SourceInfo(helper, listOf(*path.toTypedArray()))
   }
 }
 
 private fun <T> List<T>.withSourceInfo(sourceInfo: SourceInfo, value: Int): List<Pair<SourceInfo, T>> {
-  val baseSource = sourceInfo.new()
+  val baseSource = sourceInfo.clone()
   val result = mutableListOf<Pair<SourceInfo, T>>()
   baseSource.push(value)
   for ((index, elem) in withIndex()) {
-    val newSource = baseSource.new()
+    val newSource = baseSource.clone()
     newSource.push(index)
     result.add(newSource to elem)
   }
