@@ -138,10 +138,17 @@ class WireGenerator(
 
 private fun parseFileDescriptor(fileDescriptor: FileDescriptorProto, descs: DescriptorSource): ProtoFileElement {
   val packagePrefix = if (fileDescriptor.hasPackage()) ".${fileDescriptor.`package`}" else ""
+  val types = mutableListOf<TypeElement>()
 
   val imports = mutableListOf<String>()
   val publicImports = mutableListOf<String>()
-  val types = mutableListOf<TypeElement>()
+  for ((index, dependencyFile) in fileDescriptor.dependencyList.withIndex()) {
+    if (index in fileDescriptor.publicDependencyList.toSet()) {
+      publicImports.add(dependencyFile)
+    } else {
+      imports.add(dependencyFile)
+    }
+  }
 
   val baseSourceInfo = SourceInfo(fileDescriptor)
   for ((sourceInfo, messageType) in fileDescriptor.messageTypeList.withSourceInfo(baseSourceInfo, FileDescriptorProto.MESSAGE_TYPE_FIELD_NUMBER)) {
@@ -155,13 +162,6 @@ private fun parseFileDescriptor(fileDescriptor: FileDescriptorProto, descs: Desc
   val services = mutableListOf<ServiceElement>()
   for ((sourceInfo, service) in fileDescriptor.serviceList.withSourceInfo(baseSourceInfo, FileDescriptorProto.SERVICE_FIELD_NUMBER)) {
     services.add(parseService(sourceInfo, service, descs))
-  }
-  for ((index, dependencyFile) in fileDescriptor.dependencyList.withIndex()) {
-    if (index in fileDescriptor.publicDependencyList.toSet()) {
-      publicImports.add(dependencyFile)
-    } else {
-      imports.add(dependencyFile)
-    }
   }
 
   return ProtoFileElement(
