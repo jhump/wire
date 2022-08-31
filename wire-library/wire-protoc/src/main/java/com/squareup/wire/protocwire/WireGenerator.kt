@@ -75,10 +75,10 @@ data class ProtocContext(
   override val module: SchemaHandler.Module? = null
   override val profileLoader: ProfileLoader = object : ProfileLoader {
     private val profile = Profile()
-      override fun loadProfile(name: String, schema: Schema): Profile {
-        return profile
-      }
+    override fun loadProfile(name: String, schema: Schema): Profile {
+      return profile
     }
+  }
 
   override fun inSourcePath(protoFile: ProtoFile): Boolean {
     return inSourcePath(protoFile.location)
@@ -150,18 +150,19 @@ private fun parseFileDescriptor(fileDescriptor: FileDescriptorProto, descs: Desc
   }
 
   val types = mutableListOf<TypeElement>()
-  val baseSourceInfo = SourceInfo(fileDescriptor)
+
+  val baseSourceInfo = SourceInfo(fileDescriptor, descs)
   for ((sourceInfo, messageType) in fileDescriptor.messageTypeList.withSourceInfo(baseSourceInfo, FileDescriptorProto.MESSAGE_TYPE_FIELD_NUMBER)) {
-    types.add(parseMessage(sourceInfo, packagePrefix, messageType, descs))
+    types.add(parseMessage(sourceInfo, packagePrefix, messageType))
   }
 
   for ((sourceInfo, enumType) in fileDescriptor.enumTypeList.withSourceInfo(baseSourceInfo, FileDescriptorProto.ENUM_TYPE_FIELD_NUMBER)) {
-    types.add(parseEnum(sourceInfo, enumType, descs))
+    types.add(parseEnum(sourceInfo, enumType))
   }
 
   val services = mutableListOf<ServiceElement>()
   for ((sourceInfo, service) in fileDescriptor.serviceList.withSourceInfo(baseSourceInfo, FileDescriptorProto.SERVICE_FIELD_NUMBER)) {
-    services.add(parseService(sourceInfo, service, descs))
+    services.add(parseService(sourceInfo, service))
   }
 
   return ProtoFileElement(
@@ -179,20 +180,19 @@ private fun parseFileDescriptor(fileDescriptor: FileDescriptorProto, descs: Desc
 private fun parseService(
   baseSourceInfo: SourceInfo,
   service: ServiceDescriptorProto,
-  descs: DescriptorSource
 ): ServiceElement {
   val info = baseSourceInfo.info()
   val rpcs = mutableListOf<RpcElement>()
 
   for ((sourceInfo, method) in service.methodList.withSourceInfo(baseSourceInfo, ServiceDescriptorProto.METHOD_FIELD_NUMBER)) {
-    rpcs.add(parseMethod(sourceInfo, method, descs))
+    rpcs.add(parseMethod(sourceInfo, method, baseSourceInfo.descriptorSource))
   }
   return ServiceElement(
     location = info.loc,
     name = service.name,
     documentation = info.comment,
     rpcs = rpcs,
-    options = parseOptions(service.options, descs)
+    options = parseOptions(service.options, baseSourceInfo.descriptorSource)
   )
 }
 
@@ -217,7 +217,6 @@ private fun parseMethod(
 private fun parseEnum(
   baseSourceInfo: SourceInfo,
   enum: EnumDescriptorProto,
-  descs: DescriptorSource
 ): EnumElement {
   val info = baseSourceInfo.info()
   val constants = mutableListOf<EnumConstantElement>()
@@ -228,20 +227,20 @@ private fun parseEnum(
       name = enumValueDescriptorProto.name,
       tag = enumValueDescriptorProto.number,
       documentation = enumValueInfo.comment,
-      options = parseOptions(enumValueDescriptorProto.options, descs)
+      options = parseOptions(enumValueDescriptorProto.options, baseSourceInfo.descriptorSource)
     ))
   }
   return EnumElement(
     location = info.loc,
     name = enum.name,
     documentation = info.comment,
-    options = parseOptions(enum.options, descs),
+    options = parseOptions(enum.options, baseSourceInfo.descriptorSource),
     constants = constants,
     reserveds = emptyList()
   )
 }
 
-private fun parseMessage(baseSourceInfo: SourceInfo, packagePrefix: String, message: DescriptorProto, descs: DescriptorSource): MessageElement {
+private fun parseMessage(baseSourceInfo: SourceInfo, packagePrefix: String, message: DescriptorProto): MessageElement {
   val info = baseSourceInfo.info()
   val nestedTypes = mutableListOf<TypeElement>()
 
@@ -254,14 +253,20 @@ private fun parseMessage(baseSourceInfo: SourceInfo, packagePrefix: String, mess
       mapTypes[nestedTypeFullyQualifiedName] = "map<${keyTypeName}, ${valueTypeName}>"
       continue
     }
-    nestedTypes.add(parseMessage(sourceInfo, "$packagePrefix.${nestedType.name}", nestedType, descs))
+    nestedTypes.add(parseMessage(sourceInfo, "$packagePrefix.${nestedType.name}", nestedType))
   }
 
   for ((sourceInfo, nestedType) in message.enumTypeList.withSourceInfo(baseSourceInfo, DescriptorProto.ENUM_TYPE_FIELD_NUMBER)) {
-    nestedTypes.add(parseEnum(sourceInfo, nestedType, descs))
+    nestedTypes.add(parseEnum(sourceInfo, nestedType))
   }
 
-  val fieldElementList = parseFields(baseSourceInfo, message.fieldList, mapTypes, descs)
+  /**
+   * This can be cleaned up a bit more but this is kept in order to localize code changes.
+   *
+   * There is a need to associate the FieldElement object with its file descriptor proto. There
+   * is a need for adding new fields to FieldElement but that will be done later.
+   */
+  val fieldElementList = parseFields(baseSourceInfo, message.fieldList, mapTypes, baseSourceInfo.descriptorSource)
   val zippedFields = message.fieldList.zip(fieldElementList) { descriptorProto, fieldElement -> descriptorProto to fieldElement }
   val oneOfIndexToFields = indexFieldsByOneOf(zippedFields)
   val fields = zippedFields.filter { pair -> !pair.first.hasOneofIndex() }.map { pair -> pair.second }
@@ -269,11 +274,11 @@ private fun parseMessage(baseSourceInfo: SourceInfo, packagePrefix: String, mess
     location = info.loc,
     name = message.name,
     documentation = info.comment,
-    options = parseOptions(message.options, descs),
+    options = parseOptions(message.options, baseSourceInfo.descriptorSource),
     reserveds = emptyList(),
     fields = fields,
     nestedTypes = nestedTypes,
-    oneOfs = parseOneOfs(baseSourceInfo, message.oneofDeclList, oneOfIndexToFields, descs),
+    oneOfs = parseOneOfs(baseSourceInfo, message.oneofDeclList, oneOfIndexToFields),
     extensions = emptyList(),
     groups = emptyList(),
   )
@@ -283,7 +288,6 @@ private fun parseOneOfs(
   baseSourceInfo: SourceInfo,
   oneOfDeclList: List<DescriptorProtos.OneofDescriptorProto>,
   oneOfMap: Map<Int, List<FieldElement>>,
-  descs: DescriptorSource
 ): List<OneOfElement> {
   val info = baseSourceInfo.info()
   val result = mutableListOf<OneOfElement>()
@@ -294,7 +298,7 @@ private fun parseOneOfs(
       documentation = info.comment,
       fields = fieldList,
       groups = emptyList(),
-      options = parseOptions(oneOfDeclList[oneOfIndex].options, descs)
+      options = parseOptions(oneOfDeclList[oneOfIndex].options, baseSourceInfo.descriptorSource)
     ))
   }
   return result
@@ -495,12 +499,14 @@ private class SourceCodeHelper(
 
 private class SourceInfo(
   val helper: SourceCodeHelper,
+  val descriptorSource: DescriptorSource,
   path: List<Int> = emptyList(),
 ) {
   constructor(
     fileDescriptor: FileDescriptorProto,
+    descriptorSource: DescriptorSource,
     path: List<Int> = emptyList()
-  ) : this(SourceCodeHelper(fileDescriptor), path)
+  ) : this(SourceCodeHelper(fileDescriptor), descriptorSource, path)
 
   private val path = mutableListOf(*path.toTypedArray())
 
@@ -513,7 +519,7 @@ private class SourceInfo(
   }
 
   fun clone(): SourceInfo {
-    return SourceInfo(helper, listOf(*path.toTypedArray()))
+    return SourceInfo(helper, descriptorSource, listOf(*path.toTypedArray()))
   }
 }
 
