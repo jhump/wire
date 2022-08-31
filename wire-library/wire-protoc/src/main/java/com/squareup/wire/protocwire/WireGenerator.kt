@@ -93,7 +93,7 @@ data class ProtocContext(
   }
 
   override fun write(file: Path, str: String) {
-    response.addFile(file.name, str)
+    response.addFile(file.toString(), str)
   }
 }
 
@@ -141,6 +141,14 @@ private fun parseFileDescriptor(fileDescriptor: FileDescriptorProto, descs: Desc
 
   val imports = mutableListOf<String>()
   val publicImports = mutableListOf<String>()
+  for ((index, dependencyFile) in fileDescriptor.dependencyList.withIndex()) {
+    if (index in fileDescriptor.publicDependencyList.toSet()) {
+      publicImports.add(dependencyFile)
+    } else {
+      imports.add(dependencyFile)
+    }
+  }
+
   val types = mutableListOf<TypeElement>()
 
   val baseSourceInfo = SourceInfo(fileDescriptor, descs)
@@ -165,7 +173,7 @@ private fun parseFileDescriptor(fileDescriptor: FileDescriptorProto, descs: Desc
     types = types,
     services = services,
     options = parseOptions(fileDescriptor.options, descs),
-    syntax = Syntax.PROTO_3,
+    syntax = if (fileDescriptor.hasSyntax()) Syntax[fileDescriptor.syntax] else Syntax.PROTO_2,
   )
 }
 
@@ -335,7 +343,7 @@ private fun parseFields(
       label = label,
       type = type,
       name = field.name,
-//      defaultValue = field.defaultValue,
+      defaultValue = if (field.hasDefaultValue()) field.defaultValue else null,
       jsonName = field.jsonName,
       tag = field.number,
       documentation = info.comment,
