@@ -141,8 +141,15 @@ private fun parseFileDescriptor(fileDescriptor: FileDescriptorProto, descs: Desc
 
   val imports = mutableListOf<String>()
   val publicImports = mutableListOf<String>()
-  val types = mutableListOf<TypeElement>()
+  for ((index, dependencyFile) in fileDescriptor.dependencyList.withIndex()) {
+    if (index in fileDescriptor.publicDependencyList.toSet()) {
+      publicImports.add(dependencyFile)
+    } else {
+      imports.add(dependencyFile)
+    }
+  }
 
+  val types = mutableListOf<TypeElement>()
   val baseSourceInfo = SourceInfo(fileDescriptor)
   for ((sourceInfo, messageType) in fileDescriptor.messageTypeList.withSourceInfo(baseSourceInfo, FileDescriptorProto.MESSAGE_TYPE_FIELD_NUMBER)) {
     types.add(parseMessage(sourceInfo, packagePrefix, messageType, descs))
@@ -165,7 +172,7 @@ private fun parseFileDescriptor(fileDescriptor: FileDescriptorProto, descs: Desc
     types = types,
     services = services,
     options = parseOptions(fileDescriptor.options, descs),
-    syntax = Syntax.PROTO_3,
+    syntax = if (fileDescriptor.hasSyntax()) Syntax[fileDescriptor.syntax] else Syntax.PROTO_2,
   )
 }
 
