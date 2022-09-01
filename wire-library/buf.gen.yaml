@@ -11,5 +11,3 @@ plugins:
   - name: protoc-gen-wire-swift
     out: gen/proto/swiftout
     path: ./wire-protoc/protoc-gen-wire-swift
-
-
