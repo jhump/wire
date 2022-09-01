@@ -16,83 +16,36 @@
 syntax = "proto3";
 
 package proto3.simple;
+import "google/protobuf/wrappers.proto";
 
-option java_package = "com.squareup.wire.proto3.kotlin.simple";
+message AllWrappers {
+  google.protobuf.DoubleValue double_value = 1;
+  google.protobuf.FloatValue float_value = 2;
+  google.protobuf.Int64Value int64_value = 3;
+  google.protobuf.UInt64Value uint64_value = 4;
+  google.protobuf.Int32Value int32_value = 5;
+  google.protobuf.UInt32Value uint32_value = 6;
+  google.protobuf.BoolValue bool_value = 7;
+  google.protobuf.StringValue string_value = 8;
+  google.protobuf.BytesValue bytes_value = 9;
 
-// Hello service
-service Hello {
-  // hello
-  rpc Hello(HelloRequest) returns (HelloResponse);
-  // hello stream response
-  rpc HelloStreamResponse(HelloRequest) returns (stream HelloResponse);
-  // hello stream request
-  rpc HelloStreamRequest(stream HelloRequest) returns (HelloResponse);
-  // hello bidi
-  rpc HelloBiDiStream(stream HelloRequest) returns (stream HelloResponse);
-}
-// Hello request
-message HelloRequest {}
-// Hello response
-message HelloResponse {}
+  repeated google.protobuf.DoubleValue rep_double_value = 101;
+  repeated google.protobuf.FloatValue rep_float_value = 102;
+  repeated google.protobuf.Int64Value rep_int64_value = 103;
+  repeated google.protobuf.UInt64Value rep_uint64_value = 104;
+  repeated google.protobuf.Int32Value rep_int32_value = 105;
+  repeated google.protobuf.UInt32Value rep_uint32_value = 106;
+  repeated google.protobuf.BoolValue rep_bool_value = 107;
+  repeated google.protobuf.StringValue rep_string_value = 108;
+  repeated google.protobuf.BytesValue rep_bytes_value = 109;
 
-// This is an empty message
-message EmptyMsg {}
-
-// A very simple message with one string
-message StringMsg {
-  // leading doc comment
-  string str = 1;
-}
-
-message MessageFieldMsg { // trailing docs for MessageFieldMsg
-  StringMsg msg = 1; // trailing doc comment
-}
-
-// NestedMsg
-message NestedMsg {
-  // InnerMsg field
-  InnerMsg msg = 1;
-
-  // This message is nested inside another
-  message InnerMsg {
-    // InnerMsg field
-    int32 i = 1;
-  }
-}
-
-message EnumMsg {
-  Enum enumeration = 1;
-}
-
-// Enum doc comment
-enum Enum {
-  // Default/unspecified
-  UNSPECIFIED = 0;
-  // Numero Uno!
-  FIRST_VALUE = 1;
-}
-
-// List
-message RecursiveList {
-  // Recursive reference for list
-  repeated RecursiveList list = 1;
-}
-
-// Maps
-message RecursiveMap {
-  // Recursive reference for map
-  map<string, RecursiveMap> map = 1;
-}
-
-// OneOfMsg
-message OneOfMsg {
-  // oneof declaration
-  oneof some_oneof {
-    // oneof str_a
-    string str_a = 1;
-    // oneof str_b
-    string str_b = 2;
-  }
-  // present
-  string always_present = 3;
+  map<int32, google.protobuf.DoubleValue> map_int32_double_value = 301;
+  map<int32, google.protobuf.FloatValue> map_int32_float_value = 302;
+  map<int32, google.protobuf.Int64Value> map_int32_int64_value = 303;
+  map<int32, google.protobuf.UInt64Value> map_int32_uint64_value = 304;
+  map<int32, google.protobuf.Int32Value> map_int32_int32_value = 305;
+  map<int32, google.protobuf.UInt32Value> map_int32_uint32_value = 306;
+  map<int32, google.protobuf.BoolValue> map_int32_bool_value = 307;
+  map<int32, google.protobuf.StringValue> map_int32_string_value = 308;
+  map<int32, google.protobuf.BytesValue> map_int32_bytes_value = 309;
 }

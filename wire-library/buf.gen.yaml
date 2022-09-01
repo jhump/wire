@@ -11,3 +11,7 @@ plugins:
   - name: protoc-gen-wire-swift
     out: gen/proto/swiftout
     path: ./wire-protoc/protoc-gen-wire-swift
+    # brew install swift-protobuf
+  - name: swift
+    out: gen/proto/proto-gen-swiftout
+    path: /opt/homebrew/Cellar/swift-protobuf/1.20.1/bin/protoc-gen-swift
