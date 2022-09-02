@@ -150,12 +150,10 @@ private fun parseFileDescriptor(fileDescriptor: FileDescriptorProto, descs: Desc
   }
 
   val types = mutableListOf<TypeElement>()
-
   val baseSourceInfo = SourceInfo(fileDescriptor, descs)
   for ((sourceInfo, messageType) in fileDescriptor.messageTypeList.withSourceInfo(baseSourceInfo, FileDescriptorProto.MESSAGE_TYPE_FIELD_NUMBER)) {
     types.add(parseMessage(sourceInfo, packagePrefix, messageType))
   }
-
   for ((sourceInfo, enumType) in fileDescriptor.enumTypeList.withSourceInfo(baseSourceInfo, FileDescriptorProto.ENUM_TYPE_FIELD_NUMBER)) {
     types.add(parseEnum(sourceInfo, enumType))
   }
