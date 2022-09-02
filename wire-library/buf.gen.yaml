@@ -7,11 +7,13 @@ managed:
 plugins:
   - name: protoc-gen-wire-kotlin
     out: gen/proto/kotlinout
-    path: ./wire-protoc/protoc-gen-wire-kotlin
-  - name: protoc-gen-wire-swift
-    out: gen/proto/swiftout
-    path: ./wire-protoc/protoc-gen-wire-swift
-    # brew install swift-protobuf
+    path: ./wire-protoc/protoc-gen-wire-kotlin-local
   - name: swift
-    out: gen/proto/proto-gen-swiftout
-    path: /opt/homebrew/Cellar/swift-protobuf/1.20.1/bin/protoc-gen-swift
+    out: gen/proto/swiftout
+    path: ./wire-protoc/protoc-gen-wire-swift-local
+
+# remote generation reference
+#  - remote: buf.build/achiu/plugins/pg-wire-kotlin:v0.0.1
+#    out: gen/proto/remotekotlinout
+#  - remote: buf.build/achiu/plugins/pg-wire-kotlin:v0.0.1
+#    out: gen/proto/remotekotlinout

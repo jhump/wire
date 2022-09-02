@@ -100,6 +100,8 @@ class WireGenerator(
   private val target: Target
 ) : CodeGenerator {
   override fun generate(request: PluginProtos.CodeGeneratorRequest, descs: DescriptorSource, response: Plugin.Response) {
+//    println("hello")
+//    debug(request)
     val loader = CoreLoader
     val errorCollector = ErrorCollector()
     val linker = Linker(loader, errorCollector, permitPackageCycles = true, loadExhaustively = true)
