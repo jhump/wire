@@ -1,4 +1,3 @@
 version: v1
 directories:
   - wire-protoc/src/main/testproto
-  - wire-tests/src/commonTest/proto/kotlin
