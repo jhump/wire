@@ -16,6 +16,7 @@ import com.google.protobuf.compiler.PluginProtos
 import com.squareup.wire.Syntax
 import com.squareup.wire.WireLogger
 import com.squareup.wire.protocwire.Plugin.DescriptorSource
+import com.squareup.wire.protocwire.cmd.StubbedRequestDebugging.Companion.debug
 import com.squareup.wire.schema.ClaimedDefinitions
 import com.squareup.wire.schema.ClaimedPaths
 import com.squareup.wire.schema.CoreLoader
@@ -249,7 +250,7 @@ private fun parseMessage(baseSourceInfo: SourceInfo, packagePrefix: String, mess
       mapTypes[nestedTypeFullyQualifiedName] = "map<${keyTypeName}, ${valueTypeName}>"
       continue
     }
-    nestedTypes.add(parseMessage(sourceInfo, "$packagePrefix.${nestedType.name}", nestedType))
+    nestedTypes.add(parseMessage(sourceInfo, "$packagePrefix.${message.name}", nestedType))
   }
 
   for ((sourceInfo, nestedType) in message.enumTypeList.withSourceInfo(baseSourceInfo, DescriptorProto.ENUM_TYPE_FIELD_NUMBER)) {
