@@ -96,14 +96,14 @@ message OneOfMsg {
   // present
   string always_present = 3;
 }
+
+// Map
 message Map {
+  // inner map message
   message InnerMap {
-    // The number of completed RPCs for each peer.
+    // inner map field
     map<string, int32> inner_map_field = 1;
   }
-  //  // The number of completed RPCs for each peer.
-  //  map<string, int32> rpcs_by_peer = 1;
-  //  // The number of RPCs that failed to record a remote peer.
-  //  int32 num_failures = 2;
+  // inner map reference
   map<string, InnerMap> inner_map_reference = 3;
 }
