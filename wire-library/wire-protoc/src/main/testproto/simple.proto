@@ -96,3 +96,14 @@ message OneOfMsg {
   // present
   string always_present = 3;
 }
+
+// Map
+message Map {
+  // inner map message
+  message InnerMap {
+    // inner map field
+    map<string, int32> inner_map_field = 1;
+  }
+  // inner map reference
+  map<string, InnerMap> inner_map_reference = 3;
+}
