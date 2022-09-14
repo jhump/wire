@@ -148,10 +148,11 @@ private fun parseFileDescriptor(fileDescriptor: FileDescriptorProto, descs: Desc
     }
   }
 
+  val syntax = if (fileDescriptor.hasSyntax()) Syntax[fileDescriptor.syntax] else Syntax.PROTO_2
   val types = mutableListOf<TypeElement>()
   val baseSourceInfo = SourceInfo(fileDescriptor, descs)
   for ((sourceInfo, messageType) in fileDescriptor.messageTypeList.withSourceInfo(baseSourceInfo, FileDescriptorProto.MESSAGE_TYPE_FIELD_NUMBER)) {
-    types.add(parseMessage(sourceInfo, packagePrefix, messageType, (fileDescriptor.syntax ?: "") == "proto3"))
+    types.add(parseMessage(sourceInfo, packagePrefix, messageType, syntax))
   }
   for ((sourceInfo, enumType) in fileDescriptor.enumTypeList.withSourceInfo(baseSourceInfo, FileDescriptorProto.ENUM_TYPE_FIELD_NUMBER)) {
     types.add(parseEnum(sourceInfo, enumType))
@@ -170,7 +171,7 @@ private fun parseFileDescriptor(fileDescriptor: FileDescriptorProto, descs: Desc
     types = types,
     services = services,
     options = parseOptions(fileDescriptor.options, descs),
-    syntax = if (fileDescriptor.hasSyntax()) Syntax[fileDescriptor.syntax] else Syntax.PROTO_2,
+    syntax = syntax,
   )
 }
 
@@ -237,7 +238,7 @@ private fun parseEnum(
   )
 }
 
-private fun parseMessage(baseSourceInfo: SourceInfo, packagePrefix: String, message: DescriptorProto, isProto3: Boolean): MessageElement {
+private fun parseMessage(baseSourceInfo: SourceInfo, packagePrefix: String, message: DescriptorProto, syntax: Syntax): MessageElement {
   val info = baseSourceInfo.info()
   val nestedTypes = mutableListOf<TypeElement>()
 
@@ -254,7 +255,7 @@ private fun parseMessage(baseSourceInfo: SourceInfo, packagePrefix: String, mess
       sourceInfo,
       "$packagePrefix.${message.name}",
       nestedType,
-      isProto3
+      syntax
     ))
   }
 
@@ -268,7 +269,7 @@ private fun parseMessage(baseSourceInfo: SourceInfo, packagePrefix: String, mess
    * There is a need to associate the FieldElement object with its file descriptor proto. There
    * is a need for adding new fields to FieldElement but that will be done later.
    */
-  val fieldElementList = parseFields(baseSourceInfo, message.fieldList, mapTypes, baseSourceInfo.descriptorSource, isProto3)
+  val fieldElementList = parseFields(baseSourceInfo, message.fieldList, mapTypes, baseSourceInfo.descriptorSource, syntax)
   val zippedFields = message.fieldList.zip(fieldElementList) { descriptorProto, fieldElement -> descriptorProto to fieldElement }
   val oneOfIndexToFields = indexFieldsByOneOf(zippedFields)
   val fields = zippedFields.filter { pair -> !pair.first.hasOneofIndex() }.map { pair -> pair.second }
@@ -335,11 +336,11 @@ private fun parseFields(
   fieldList: List<FieldDescriptorProto>,
   mapTypes: MutableMap<String, String>,
   descs: DescriptorSource,
-  isProto3: Boolean,
+  syntax: Syntax,
 ): List<FieldElement> {
   val result = mutableListOf<FieldElement>()
   for ((sourceInfo, field) in fieldList.withSourceInfo(baseSourceInfo, DescriptorProto.FIELD_FIELD_NUMBER)) {
-    var label = parseLabel(field, isProto3)
+    var label = parseLabel(field, syntax)
     var type = parseType(field)
     if (mapTypes.keys.contains(type)) {
       type = mapTypes[type]!!
@@ -390,14 +391,14 @@ private fun parseType(field: FieldDescriptorProto): String {
   }
 }
 
-private fun parseLabel(field: FieldDescriptorProto, isProto3: Boolean): Field.Label? {
+private fun parseLabel(field: FieldDescriptorProto, syntax: Syntax): Field.Label? {
   return when (field.label) {
     FieldDescriptorProto.Label.LABEL_REPEATED -> Field.Label.REPEATED
     FieldDescriptorProto.Label.LABEL_REQUIRED -> Field.Label.REQUIRED
     FieldDescriptorProto.Label.LABEL_OPTIONAL ->
       when {
         field.hasOneofIndex() && !field.proto3Optional -> Field.Label.ONE_OF
-        isProto3 && !field.hasExtendee() && !field.proto3Optional -> null
+        syntax == Syntax.PROTO_3 && !field.hasExtendee() && !field.proto3Optional -> null
         else ->  Field.Label.OPTIONAL
       }
     else -> null
